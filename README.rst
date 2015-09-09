@@ -7,6 +7,7 @@ Quick Error
 A macro which makes error types pleasant to write.
 
 Features:
+
 * Define enum type with arbitrary parameters (not struct variants for now)
 * Concise notation of ``Display`` and ``Error`` traits
 * Full control of ``Display`` and ``Error`` trait implementation
