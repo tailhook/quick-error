@@ -1,3 +1,159 @@
+//! A macro which makes errors easy to write
+//!
+//! Minimum type is like this:
+//!
+//! ```rust
+//!
+//! #[macro_use] extern crate quick_error;
+//!
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         Variant1 {}
+//!     }
+//! }
+//! ```
+//! Both ``pub`` and non-public types may be declared, and all meta attributes
+//! (such as ``#[derive(Debug)]``) are forwarded as is.
+//!
+//! You may add arbitrary parameters to any struct variant:
+//!
+//! ```rust
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         Io(err: io::Error) {}
+//!         Sys(errno: nix::Errno) {}
+//!     }
+//! }
+//! ```
+//!
+//! Note unlike in normal Enum decarations you declare names of fields (which
+//! are omitted from type). How they can be used is outlined below.
+//!
+//! Now you might have noticed trailing braces `{}`. They are used to define
+//! implementations. By default:
+//!
+//! * `Error::description()` returns variant name as static string
+//! * `Error::cause()` returns None (even if type wraps some value)
+//! * `Display` outputs `description()`
+//! * No `From` implementations are defined
+//!
+//! To define description simply add `description(value)` inside braces:
+//!
+//! ```rust
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         Io(err: io::Error) {
+//!             description(err.description())
+//!         }
+//!         Sys(errno: nix::Errno) {
+//!             description("system error")
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! Normal rules for borrowing apply. So most of the time description either
+//! returns constant string or forwards description from enclosed type.
+//!
+//! To change `cause` method to return some error, add `cause(value)`, for
+//! example:
+//!
+//! ```rust
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         Io(err: io::Error) {
+//!             cause(err)
+//!             description(err.description())
+//!         }
+//!         Sys(errno: nix::Errno) {
+//!             description("system error")
+//!         }
+//!     }
+//! }
+//! ```
+//! Note you don't need to wrap value in `Some`, its implicit. In case you want
+//! `None` returned just omit the `cause`. You can't return `None`
+//! conditionally.
+//!
+//! To change how each clause is `Display`ed add `display(pattern,..args)`,
+//! for example:
+//!
+//! ```rust
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         Io(err: io::Error) {
+//!             display("I/O error: {}", err)
+//!         }
+//!         Sys(errno: nix::Errno) {
+//!             display("System error, errno ({:x})", errno)
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! To convert to the type from any other, use one of the three forms of
+//! `from` clause.
+//!
+//! For example, to convert simple wrapper use bare `from()`:
+//!
+//! ```rust
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         Io(err: io::Error) {
+//!             from()
+//!         }
+//!     }
+//! ```
+//!
+//! This implements ``From<io::Error>``.
+//!
+//! To convert to singleton enumeration type (discarding the value), use
+//! the `from(type)` form:
+//!
+//! ```rust
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         FormatError {
+//!             from(std::fmt::Error)
+//!         }
+//!     }
+//! ```
+//!
+//! And the most powerful form is `from(var: type) -> (arguments...)`. It
+//! might be used to convert to type with multiple arguments or for arbitrary
+//! value conversions:
+//!
+//! ```rust
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         FailedOperation(s: &'static str, errno: i32) {
+//!             from(errno: i32) -> ("os error", i32)
+//!             from(e: io::Error) -> ("io error", e.raw_os_error().unwrap())
+//!         }
+//!         /// Converts from both kinds of utf8 errors
+//!         Utf8(err: std::str::Utf8Error) {
+//!             from()
+//!             from(err: std::string::FromUtf8Error) -> (err.utf8_error())
+//!         }
+//!     }
+//! ```
+//!
+//! All forms of `from`, `display`, `description`, `cause` clauses can be
+//! combined and put in arbitrary order. Only `from` may be used multiple times
+//! in single variant of enumeration. Docstrings are also okay.
+//! Empty braces can't be omitted.
+//!
+
+
+/// Main macro that does all the work
 #[macro_export]
 macro_rules! quick_error {
     (
