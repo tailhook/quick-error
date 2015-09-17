@@ -230,7 +230,7 @@ macro_rules! quick_error {
                     )*
                 }
             }
-            fn cause(&self) -> Option<&Error> {
+            fn cause(&self) -> Option<&::std::error::Error> {
                 match self {
                     $(
                         &$name::$item $( ( $(ref $var),* ) )* => {
