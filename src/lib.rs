@@ -180,7 +180,7 @@ macro_rules! quick_error {
            )*
         }
         quick_error!(IMPLEMENTATIONS $name { $(
-           $item $( ( $($var: $typ),* ) )* { $($funcs)* }
+           $item $( ( $($var: $typ),* ) )* { $($funcs)* __doc__($doc) }
            )* });
         $(
             quick_error!(ERROR_CHECK $($funcs)*);
@@ -203,7 +203,7 @@ macro_rules! quick_error {
             )*
          }
          quick_error!(IMPLEMENTATIONS $name { $(
-            $item $( ( $($var: $typ),* ) )* { $($funcs)* }
+            $item $( ( $($var: $typ),* ) )* { $($funcs)* __doc__($doc) }
             )* });
         $(
             quick_error!(ERROR_CHECK  $($funcs)*);
@@ -323,6 +323,14 @@ macro_rules! quick_error {
     };
     (FIND_DESCRIPTION_IMPL $item:ident $me:ident $fmt:ident
         [ $( ( $($var:ident)* ) )* ]
+        { description(__doc__) $($tail:tt)* }
+    ) => {
+        // The __doc__ thing is always added to the tail, so we can continue
+        // to search for it from here
+        quick_error!(FIND_DOC_IMPL $item { $($tail)* })
+    };
+    (FIND_DESCRIPTION_IMPL $item:ident $me:ident $fmt:ident
+        [ $( ( $($var:ident)* ) )* ]
         { description($expr:expr) $($tail:tt)* }
     ) => {
         $expr
@@ -339,6 +347,15 @@ macro_rules! quick_error {
         [ $( ( $($var:ident)* ) )* ]
         { }
     ) => {
+        stringify!($item)
+    };
+    (FIND_DOC_IMPL $item:ident { __doc__($doc:expr) $($tail:tt)* }) => {
+        $doc.trim()
+    };
+    (FIND_DOC_IMPL $item:ident { $t:tt $($tail:tt)* }) => {
+        quick_error!(FIND_DOC_IMPL $item { $($tail)* })
+    };
+    (FIND_DOC_IMPL $item:ident {}) => {
         stringify!($item)
     };
     (FIND_CAUSE_IMPL $item:ident
@@ -421,6 +438,8 @@ macro_rules! quick_error {
     // skip everything else completely
     (ERROR_CHECK display($($exprs:expr),*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
+    (ERROR_CHECK description(__doc__) $($tail:tt)*)
+    => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK description($expr:expr) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK cause($expr:expr) $($tail:tt)*)
@@ -442,9 +461,7 @@ mod test {
     quick_error! {
         #[derive(Debug)]
         pub enum Bare {
-            /// First item
             One {}
-            /// Second item
             Two {}
         }
     }
@@ -468,23 +485,27 @@ mod test {
     quick_error! {
         #[derive(Debug)]
         pub enum IoWrapper {
+            /// IO Error
             Io(err: io::Error) {
                 from()
                 description(err.description())
                 display("I/O error: {}", err)
                 cause(err)
             }
+            /// Other Error
             Other(descr: &'static str) {
                 description(descr)
                 display("Error: {}", descr)
             }
+            /// Io Error At
             IoAt(place: &'static str, err: io::Error) {
                 cause(err)
                 display("Error at {}: {}", place, err)
-                description("io error at")
+                description(__doc__)
                 from(s: String) -> ("idea",
                                     io::Error::new(io::ErrorKind::Other, s))
             }
+            /// Discards real error
             Discard {
                 from(&'static str)
             }
@@ -525,7 +546,7 @@ mod test {
                 error: Io(Error { repr: Custom(Custom { \
                     kind: Other, error: StringError(\"some error\") \
             }) }) }) })".to_string());
-        assert_eq!(err.description(), "io error at");
+        assert_eq!(err.description(), "Io Error At");
         assert_eq!(err.cause().unwrap().description(), "some error");
     }
 
