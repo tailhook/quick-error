@@ -14,7 +14,12 @@
 //! }
 //! ```
 //! Both ``pub`` and non-public types may be declared, and all meta attributes
-//! (such as ``#[derive(Debug)]``) are forwarded as is.
+//! (such as ``#[derive(Debug)]``) are forwarded as is. The `Debug` must be
+//! implemented (but you may do that youself if you like).
+//!
+//! The documentation comments ``/// something`` on variants are allowed, but
+//! you must either put them on all variants or on none of them (to the best
+//! of my understanding it's limitation of rust macro system)
 //!
 //! You may add arbitrary parameters to any struct variant:
 //!
@@ -22,7 +27,9 @@
 //! quick_error! {
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
+//!         /// IO Error
 //!         Io(err: io::Error) {}
+//!         /// Arbitrary system error
 //!         Sys(errno: nix::Errno) {}
 //!     }
 //! }
@@ -156,7 +163,53 @@
 /// Main macro that does all the work
 #[macro_export]
 macro_rules! quick_error {
-    (
+    (// public with docstring
+        $(#[$meta:meta])*
+        pub enum $name:ident {
+           $(
+               #[doc=$doc:expr]
+               $item:ident $( ( $($var:ident : $typ:ty),* ) )* { $($funcs:tt)* }
+           )*
+        }
+    ) => {
+        $(#[$meta])*
+        pub enum $name {
+           $(
+               #[doc=$doc]
+               $item $( ( $($typ),* ) )*,
+           )*
+        }
+        quick_error!(IMPLEMENTATIONS $name { $(
+           $item $( ( $($var: $typ),* ) )* { $($funcs)* }
+           )* });
+        $(
+            quick_error!(ERROR_CHECK $($funcs)*);
+        )*
+    };
+    (// private with docstring
+        $(#[$meta:meta])*
+        enum $name:ident {
+           $(
+               #[doc=$doc:expr]
+               $item:ident $( ( $($var:ident : $typ:ty),* ) )* { $($funcs:tt)* }
+           )*
+        }
+    ) => {
+        $(#[$meta])*
+         enum $name {
+            $(
+                #[doc=$doc]
+                $item $( ( $($typ),* ) )*,
+            )*
+         }
+         quick_error!(IMPLEMENTATIONS $name { $(
+            $item $( ( $($var: $typ),* ) )* { $($funcs)* }
+            )* });
+        $(
+            quick_error!(ERROR_CHECK  $($funcs)*);
+        )*
+    };
+    (// public no meta
         $(#[$meta:meta])*
         pub enum $name:ident {
            $(
@@ -175,7 +228,7 @@ macro_rules! quick_error {
             quick_error!(ERROR_CHECK $($funcs)*);
         )*
     };
-    (
+    (// private no meta
         $(#[$meta:meta])*
         enum $name:ident {
            $(
@@ -389,7 +442,9 @@ mod test {
     quick_error! {
         #[derive(Debug)]
         pub enum Bare {
+            /// First item
             One {}
+            /// Second item
             Two {}
         }
     }
