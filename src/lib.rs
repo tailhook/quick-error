@@ -247,6 +247,11 @@ macro_rules! quick_error {
                 $name $item [ $( ( $($var:$typ)* ) )* ]
                 { $($funcs)* });
         )*
+        $(
+            quick_error!(FIND_CONTEXT_IMPL
+                $name $item [ $( ( $({ $var:$typ })* ) )* ]
+                { $($funcs)* });
+        )*
     };
     (FIND_DISPLAY_IMPL $item:ident $me:ident $fmt:ident
         [ $( ( $($var:ident)* ) )* ]
@@ -362,6 +367,32 @@ macro_rules! quick_error {
         { }
     ) => {
     };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident
+        [ $( ( { $fvar:ident : $ftyp:ty } $({ $var:ident : $typ:ty })* ) )* ]
+        { context($trait_name:ident :: $meth:ident) $($tail:tt)* }
+    ) => {
+        pub trait $trait_name<T> {
+            fn $meth(self, $( $($var: $typ),* ),*) -> Result<T, $name>;
+        }
+        impl<T> $trait_name<T> for Result<T, $( $ftyp ),*> {
+            fn $meth(self, $( $($var: $typ),* ),*) -> Result<T, $name> {
+                self.map_err(|e| $name::$item(e, $( $( $var ),* ),*))
+            }
+        }
+    };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident
+        [ $( ( $({ $var:ident : $typ:ty })* ) )* ]
+        { $t:tt $($tail:tt)* }
+    ) => {
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item[ $( ( $({ $var:$typ })* ) )* ]
+            { $($tail)* });
+    };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident
+        [ $( ( $({ $var:ident : $typ:ty })* ) )* ]
+        { }
+    ) => {
+    };
     // This one should match all allowed sequences in "funcs" but not match
     // anything else.
     // This is to contrast FIND_* clauses which just find stuff they need and
@@ -378,12 +409,16 @@ macro_rules! quick_error {
     => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK from($fvar:ident : $ftyp:ty) -> ($($e:expr),*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
+    (ERROR_CHECK context($trait_name:ident :: $meth:ident) $($tail:tt)*)
+    => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK) => {};
 }
 
 #[cfg(test)]
 mod test {
     use std::io;
+    use std::io::Write;
+    use std::fs::File;
     use std::error::Error;
 
     quick_error! {
@@ -423,12 +458,13 @@ mod test {
                 description(descr)
                 display("Error: {}", descr)
             }
-            IoAt(place: &'static str, err: io::Error) {
+            IoAt(err: io::Error, place: &'static str) {
                 cause(err)
                 display("Error at {}: {}", place, err)
                 description("io error at")
-                from(s: String) -> ("idea",
-                                    io::Error::new(io::ErrorKind::Other, s))
+                from(s: String) -> (io::Error::new(io::ErrorKind::Other, s),
+                                    "idea")
+                context(With::with)
             }
             Discard {
                 from(&'static str)
@@ -461,15 +497,16 @@ mod test {
     fn io_wrapper_trait_two_fields() {
         let io1 = IoWrapper::Io(
             io::Error::new(io::ErrorKind::Other, "some error"));
-        let err: &Error = &IoWrapper::IoAt("file",
-            io::Error::new(io::ErrorKind::NotFound, io1));
+        let err: &Error = &IoWrapper::IoAt(
+            io::Error::new(io::ErrorKind::NotFound, io1),
+            "file");
         assert_eq!(format!("{}", err),
             "Error at file: I/O error: some error".to_string());
-        assert_eq!(format!("{:?}", err), "IoAt(\"file\", Error { \
+        assert_eq!(format!("{:?}", err), "IoAt(Error { \
             repr: Custom(Custom { kind: NotFound, \
                 error: Io(Error { repr: Custom(Custom { \
                     kind: Other, error: StringError(\"some error\") \
-            }) }) }) })".to_string());
+            }) }) }) }, \"file\")".to_string());
         assert_eq!(err.description(), "io error at");
         assert_eq!(err.cause().unwrap().description(), "some error");
     }
@@ -494,6 +531,20 @@ mod test {
         let io1: IoWrapper = From::from("hello");
         assert_eq!(format!("{}", io1), "Discard".to_string());
         assert!(io1.cause().is_none());
+    }
+
+    #[test]
+    fn io_wrapper_with() {
+        fn tryio() -> Result<(), IoWrapper> {
+            try!(File::create("/dev/full")
+                .and_then(|mut f| f.write(b"test"))
+                .with("/dev/null"));
+            Ok(())
+        }
+        let err = tryio().unwrap_err();
+        assert_eq!(format!("{}", err),
+            "Error at /dev/null: No space left on device (os error 28)"
+            .to_string());
     }
 
 }
