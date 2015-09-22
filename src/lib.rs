@@ -15,11 +15,9 @@
 //! ```
 //! Both ``pub`` and non-public types may be declared, and all meta attributes
 //! (such as ``#[derive(Debug)]``) are forwarded as is. The `Debug` must be
-//! implemented (but you may do that youself if you like).
-//!
-//! The documentation comments ``/// something`` on variants are allowed, but
-//! you must either put them on all variants or on none of them (to the best
-//! of my understanding it's limitation of rust macro system)
+//! implemented (but you may do that yourself if you like). The documentation
+//! comments ``/// something`` (as well as other meta attrbiutes) on variants
+//! are allowed.
 //!
 //! You may add arbitrary parameters to any struct variant:
 //!
@@ -156,96 +154,212 @@
 //! All forms of `from`, `display`, `description`, `cause` clauses can be
 //! combined and put in arbitrary order. Only `from` may be used multiple times
 //! in single variant of enumeration. Docstrings are also okay.
-//! Empty braces can't be omitted.
+//! Empty braces can be omitted as of quick_error 0.1.3.
 //!
 
 
 /// Main macro that does all the work
 #[macro_export]
 macro_rules! quick_error {
-    (// public with docstring
-        $(#[$meta:meta])*
-        pub enum $name:ident {
-           $(
-               #[doc=$doc:expr]
-               $item:ident $( ( $($var:ident : $typ:ty),* ) )* { $($funcs:tt)* }
-           )*
-        }
+    (   $(#[$meta:meta])*
+        pub enum $name:ident { $($chunks:tt)* }
     ) => {
-        $(#[$meta])*
-        pub enum $name {
-           $(
-               #[doc=$doc]
-               $item $( ( $($typ),* ) )*,
-           )*
-        }
-        quick_error!(IMPLEMENTATIONS $name { $(
-           $item $( ( $($var: $typ),* ) )* { $($funcs)* }
-           )* });
-        $(
-            quick_error!(ERROR_CHECK $($funcs)*);
-        )*
+        quick_error!(SORT [pub enum $name $(#[$meta])* ]
+            enum [] items [] buf []
+            queue [ $($chunks)* ]);
     };
-    (// private with docstring
-        $(#[$meta:meta])*
-        enum $name:ident {
-           $(
-               #[doc=$doc:expr]
-               $item:ident $( ( $($var:ident : $typ:ty),* ) )* { $($funcs:tt)* }
-           )*
-        }
+    (   $(#[$meta:meta])*
+        enum $name:ident { $($chunks:tt)* }
     ) => {
-        $(#[$meta])*
-         enum $name {
+        quick_error!(SORT [enum $name $(#[$meta])* ]
+            enum [] items [] buf []
+            queue [ $($chunks)* ]);
+    };
+/*
+macro_rules! sort {
+    ({ $( $(#[$meta:meta])* => $item:ident )* }
+     { $(#[$bufmeta:meta])* }
+     { #[$nextmeta:meta] $($tail:tt)* }) => {
+     sort!({ $( $(#[$meta])* => $item )* } { $(#[$bufmeta])* #[$nextmeta] } { $($tail)* });
+    };
+    ({ $( $(#[$meta:meta])* => $item:ident )* }
+     { $(#[$bufmeta:meta])* }
+     { $name:ident $($tail:tt)* }) => {
+     sort!({ $( $(#[$meta])* => $item )* $(#[$bufmeta])* => $name } {} { $($tail)* });
+    };
+    ({ $( $(#[$meta:meta])* => $item:ident )* } {} {}) => {
+        #[derive(Debug)]
+        pub enum Test {
             $(
-                #[doc=$doc]
-                $item $( ( $($typ),* ) )*,
+                $(#[$meta])*
+                $item,
             )*
-         }
-         quick_error!(IMPLEMENTATIONS $name { $(
-            $item $( ( $($var: $typ),* ) )* { $($funcs)* }
-            )* });
-        $(
-            quick_error!(ERROR_CHECK  $($funcs)*);
-        )*
+        }
     };
-    (// public no meta
-        $(#[$meta:meta])*
-        pub enum $name:ident {
+}
+*/
+
+    // Queue is empty, can do the work
+    (SORT [enum $name:ident $(#[$meta:meta])* ]
+        enum [ $( $(#[$emeta:meta])*
+                  => $eitem:ident $( ( $($etyp:ty),* ) )* )* ]
+        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+                                { $($ifuncs:tt)* } )* ]
+        buf [ ]
+        queue [ ]
+    ) => {
+        $(#[$meta])*
+        enum $name {
            $(
-               $item:ident $( ( $($var:ident : $typ:ty),* ) )* { $($funcs:tt)* }
+               $(#[$emeta])*
+               $eitem $(( $($etyp),* ))*,
            )*
         }
+        quick_error!(IMPLEMENTATIONS $name { $(
+           $iitem $(( $($ivar: $ityp),* ))* { $($ifuncs)* }
+           )* });
+        $(
+            quick_error!(ERROR_CHECK $($ifuncs)*);
+        )*
+    };
+    (SORT [pub enum $name:ident $(#[$meta:meta])* ]
+        enum [ $( $(#[$emeta:meta])*
+                  => $eitem:ident $( ( $($etyp:ty),* ) )* )* ]
+        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+                                { $($ifuncs:tt)* } )* ]
+        buf [ ]
+        queue [ ]
     ) => {
         $(#[$meta])*
         pub enum $name {
-           $( $item $( ( $($typ),* ) )*, )*
-        }
-        quick_error!(IMPLEMENTATIONS $name { $(
-           $item $( ( $($var: $typ),* ) )* { $($funcs)* }
-           )* });
-        $(
-            quick_error!(ERROR_CHECK $($funcs)*);
-        )*
-    };
-    (// private no meta
-        $(#[$meta:meta])*
-        enum $name:ident {
            $(
-               $item:ident $( ( $($var:ident : $typ:ty),* ) )* { $($funcs:tt)* }
+               $(#[$emeta])*
+               $eitem $(( $($etyp),* ))*,
            )*
         }
-    ) => {
-        $(#[$meta])*
-         enum $name {
-            $( $item $( ( $($typ),* ) )*, )*
-         }
-         quick_error!(IMPLEMENTATIONS $name { $(
-            $item $( ( $($var: $typ),* ) )* { $($funcs)* }
-            )* });
+        quick_error!(IMPLEMENTATIONS $name { $(
+           $iitem $(( $($ivar: $ityp),* ))* { $($ifuncs)* }
+           )* });
         $(
-            quick_error!(ERROR_CHECK  $($funcs)*);
+            quick_error!(ERROR_CHECK $($ifuncs)*);
         )*
+    };
+    // Add meta to buffer
+    (SORT [$($def:tt)*]
+        enum [ $( $(#[$emeta:meta])*
+                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
+        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+                                { $($ifuncs:tt)* } )* ]
+        buf [ $( #[$bmeta:meta] )* ]
+        queue [ #[$qmeta:meta] $($tail:tt)* ]
+    ) => {
+        quick_error!(SORT [$($def)* ]
+            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*]
+            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )* ]
+            buf [ $( #[$bmeta] )* #[$qmeta] ]
+            queue [ $($tail)* ]);
+    };
+    // Add ident to buffer
+    (SORT [$($def:tt)*]
+        enum [ $( $(#[$emeta:meta])*
+                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
+        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+                                { $($ifuncs:tt)* } )* ]
+        buf [ $( #[$bmeta:meta] )* ]
+        queue [ $qitem:ident $($tail:tt)* ]
+    ) => {
+        quick_error!(SORT [$($def)* ]
+            enum [ $( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )* ]
+            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )* ]
+            buf [ $(#[$bmeta])* => $qitem ]
+            queue [ $($tail)* ]);
+    };
+    // Flush buffer on meta after ident
+    (SORT [$($def:tt)*]
+        enum [ $( $(#[$emeta:meta])*
+                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
+        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+                                { $($ifuncs:tt)* } )* ]
+        buf [ $( #[$bmeta:meta] )*
+            => $bitem:ident $(( $($bvar:ident : $btyp:ty),* ))* ]
+        queue [ #[$qmeta:meta] $($tail:tt)* ]
+    ) => {
+        quick_error!(SORT [$($def)* ]
+            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*
+                     $(#[$bmeta])* => $bitem $(( $($btyp),* ))*]
+            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
+                     $bitem $(( $($bvar:$btyp),* ))* {} ]
+            buf [ #[$qmeta] ]
+            queue [ $($tail)* ]);
+    };
+    // Add parenthesis
+    (SORT [$($def:tt)*]
+        enum [ $( $(#[$emeta:meta])*
+                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
+        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+                                { $($ifuncs:tt)* } )* ]
+        buf [ $( #[$bmeta:meta] )* => $bitem:ident ]
+        queue [ ( $( $qvar:ident : $qtyp:ty ),* ) $($tail:tt)* ]
+    ) => {
+        quick_error!(SORT [$($def)* ]
+            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*]
+            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )* ]
+            buf [ $( #[$bmeta] )* => $bitem ( $( $qvar:$qtyp ),* ) ]
+            queue [ $($tail)* ]);
+    };
+    // Add braces and flush always on braces
+    (SORT [$($def:tt)*]
+        enum [ $( $(#[$emeta:meta])*
+                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
+        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+                                { $($ifuncs:tt)* } )* ]
+        buf [ $( #[$bmeta:meta] )*
+                 => $bitem:ident $(( $($bvar:ident : $btyp:ty),* ))* ]
+        queue [ { $($qfuncs:tt)* } $($tail:tt)* ]
+    ) => {
+        quick_error!(SORT [$($def)* ]
+            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*
+                     $(#[$bmeta])* => $bitem $(( $($btyp),* ))* ]
+            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
+                     $bitem $(( $($bvar:$btyp),* ))* { $($qfuncs)* } ]
+            buf [ ]
+            queue [ $($tail)* ]);
+    };
+    // Flush buffer on double ident
+    (SORT [$($def:tt)*]
+        enum [ $( $(#[$emeta:meta])*
+                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
+        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+                                { $($ifuncs:tt)* } )* ]
+        buf [ $( #[$bmeta:meta] )*
+                 => $bitem:ident $(( $($bvar:ident : $btyp:ty),* ))* ]
+        queue [ $qitem:ident $($tail:tt)* ]
+    ) => {
+        quick_error!(SORT [$($def)* ]
+            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*
+                     $(#[$bmeta])* => $bitem $(( $($btyp),* ))*]
+            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
+                     $bitem $(( $($bvar:$btyp),* ))* {} ]
+            buf [ => $qitem ]
+            queue [ $($tail)* ]);
+    };
+    // Flush buffer on end
+    (SORT [$($def:tt)*]
+        enum [ $( $(#[$emeta:meta])*
+                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
+        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+                                { $($ifuncs:tt)* } )* ]
+        buf [ $( #[$bmeta:meta] )*
+            => $bitem:ident $(( $($bvar:ident : $btyp:ty),* ))* ]
+        queue [ ]
+    ) => {
+        quick_error!(SORT [$($def)* ]
+            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*
+                     $(#[$bmeta])* => $bitem $(( $($btyp),* ))* ]
+            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
+                     $bitem $(( $($bvar:$btyp),* ))* {} ]
+            buf [ ]
+            queue [ ]);
     };
     (IMPLEMENTATIONS
         $name:ident {
@@ -442,10 +556,8 @@ mod test {
     quick_error! {
         #[derive(Debug)]
         pub enum Bare {
-            /// First item
-            One {}
-            /// Second item
-            Two {}
+            One
+            Two
         }
     }
 
@@ -468,6 +580,7 @@ mod test {
     quick_error! {
         #[derive(Debug)]
         pub enum IoWrapper {
+            /// I/O Error
             Io(err: io::Error) {
                 from()
                 description(err.description())
@@ -478,6 +591,7 @@ mod test {
                 description(descr)
                 display("Error: {}", descr)
             }
+            /// I/O error with some context
             IoAt(place: &'static str, err: io::Error) {
                 cause(err)
                 display("Error at {}: {}", place, err)
