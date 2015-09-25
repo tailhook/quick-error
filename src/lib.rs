@@ -175,30 +175,6 @@ macro_rules! quick_error {
             enum [] items [] buf []
             queue [ $($chunks)* ]);
     };
-/*
-macro_rules! sort {
-    ({ $( $(#[$meta:meta])* => $item:ident )* }
-     { $(#[$bufmeta:meta])* }
-     { #[$nextmeta:meta] $($tail:tt)* }) => {
-     sort!({ $( $(#[$meta])* => $item )* } { $(#[$bufmeta])* #[$nextmeta] } { $($tail)* });
-    };
-    ({ $( $(#[$meta:meta])* => $item:ident )* }
-     { $(#[$bufmeta:meta])* }
-     { $name:ident $($tail:tt)* }) => {
-     sort!({ $( $(#[$meta])* => $item )* $(#[$bufmeta])* => $name } {} { $($tail)* });
-    };
-    ({ $( $(#[$meta:meta])* => $item:ident )* } {} {}) => {
-        #[derive(Debug)]
-        pub enum Test {
-            $(
-                $(#[$meta])*
-                $item,
-            )*
-        }
-    };
-}
-*/
-
     // Queue is empty, can do the work
     (SORT [enum $name:ident $(#[$meta:meta])* ]
         enum [ $( $(#[$emeta:meta])*
