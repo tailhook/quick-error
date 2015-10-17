@@ -417,9 +417,9 @@ macro_rules! sort {
     };
     (FIND_DISPLAY_IMPL $item:ident $me:ident $fmt:ident
         [ $( ( $($var:ident)* ) )* ]
-        { display($($exprs:expr),*) $($tail:tt)* }
+        { display($($exprs:tt)*) $($tail:tt)* }
     ) => {
-        write!($fmt, $($exprs),*)
+        write!($fmt, $($exprs)*)
     };
     (FIND_DISPLAY_IMPL $item:ident $me:ident $fmt:ident
         [ $( ( $($var:ident)* ) )* ]
@@ -533,7 +533,7 @@ macro_rules! sort {
     // anything else.
     // This is to contrast FIND_* clauses which just find stuff they need and
     // skip everything else completely
-    (ERROR_CHECK display($($exprs:expr),*) $($tail:tt)*)
+    (ERROR_CHECK display($($exprs:tt)*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK description($expr:expr) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
@@ -584,7 +584,7 @@ mod test {
             Io(err: io::Error) {
                 from()
                 description(err.description())
-                display("I/O error: {}", err)
+                display("I/O error: {err}", err=err)
                 cause(err)
             }
             Other(descr: &'static str) {
