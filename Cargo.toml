@@ -4,7 +4,7 @@ description = """
     A macro which makes error types pleasant to write.
 """
 license = "MIT"
-version = "0.1.3"
+version = "0.1.4"
 keywords = ["macro", "error", "type", "enum"]
 authors = ["Paul Colomiets <paul@colomiets.name>"]
 homepage = "http://github.com/tailhook/quick-error"
