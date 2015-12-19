@@ -3,8 +3,8 @@
 //! Minimum type is like this:
 //!
 //! ```rust
-//!
 //! #[macro_use] extern crate quick_error;
+//! # fn main() {}
 //!
 //! quick_error! {
 //!     #[derive(Debug)]
@@ -22,13 +22,16 @@
 //! You may add arbitrary parameters to any struct variant:
 //!
 //! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//! #
 //! quick_error! {
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
 //!         /// IO Error
-//!         Io(err: io::Error) {}
-//!         /// Arbitrary system error
-//!         Sys(errno: nix::Errno) {}
+//!         Io(err: std::io::Error) {}
+//!         /// Utf8 Error
+//!         Utf8(err: std::str::Utf8Error) {}
 //!     }
 //! }
 //! ```
@@ -47,14 +50,17 @@
 //! To define description simply add `description(value)` inside braces:
 //!
 //! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//! #
 //! quick_error! {
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
-//!         Io(err: io::Error) {
+//!         Io(err: std::io::Error) {
 //!             description(err.description())
 //!         }
-//!         Sys(errno: nix::Errno) {
-//!             description("system error")
+//!         Utf8(err: std::str::Utf8Error) {
+//!             description("utf8 error")
 //!         }
 //!     }
 //! }
@@ -67,15 +73,18 @@
 //! example:
 //!
 //! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//! #
 //! quick_error! {
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
-//!         Io(err: io::Error) {
+//!         Io(err: std::io::Error) {
 //!             cause(err)
 //!             description(err.description())
 //!         }
-//!         Sys(errno: nix::Errno) {
-//!             description("system error")
+//!         Utf8(err: std::str::Utf8Error) {
+//!             description("utf8 error")
 //!         }
 //!     }
 //! }
@@ -88,14 +97,17 @@
 //! for example:
 //!
 //! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//! #
 //! quick_error! {
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
-//!         Io(err: io::Error) {
+//!         Io(err: std::io::Error) {
 //!             display("I/O error: {}", err)
 //!         }
-//!         Sys(errno: nix::Errno) {
-//!             display("System error, errno ({:x})", errno)
+//!         Utf8(err: std::str::Utf8Error) {
+//!             display("Utf8 error, valid up to {}", err.valid_up_to())
 //!         }
 //!     }
 //! }
@@ -107,13 +119,17 @@
 //! For example, to convert simple wrapper use bare `from()`:
 //!
 //! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//! #
 //! quick_error! {
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
-//!         Io(err: io::Error) {
+//!         Io(err: std::io::Error) {
 //!             from()
 //!         }
 //!     }
+//! }
 //! ```
 //!
 //! This implements ``From<io::Error>``.
@@ -122,6 +138,9 @@
 //! the `from(type)` form:
 //!
 //! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//! #
 //! quick_error! {
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
@@ -129,6 +148,7 @@
 //!             from(std::fmt::Error)
 //!         }
 //!     }
+//! }
 //! ```
 //!
 //! And the most powerful form is `from(var: type) -> (arguments...)`. It
@@ -136,12 +156,15 @@
 //! value conversions:
 //!
 //! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//! #
 //! quick_error! {
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
 //!         FailedOperation(s: &'static str, errno: i32) {
-//!             from(errno: i32) -> ("os error", i32)
-//!             from(e: io::Error) -> ("io error", e.raw_os_error().unwrap())
+//!             from(errno: i32) -> ("os error", errno)
+//!             from(e: std::io::Error) -> ("io error", e.raw_os_error().unwrap())
 //!         }
 //!         /// Converts from both kinds of utf8 errors
 //!         Utf8(err: std::str::Utf8Error) {
@@ -149,6 +172,7 @@
 //!             from(err: std::string::FromUtf8Error) -> (err.utf8_error())
 //!         }
 //!     }
+//! }
 //! ```
 //!
 //! All forms of `from`, `display`, `description`, `cause` clauses can be
