@@ -114,7 +114,7 @@
 //! ```
 //!
 //! If you need a reference to the error when `Display`ing, you can instead use
-//! `display_fn(X, pattern, ..args)`, where `X` sets the name of the reference.
+//! `display_fn(x, pattern, ..args)`, where `x` sets the name of the reference.
 //!
 //! ```rust
 //! # #[macro_use] extern crate quick_error;
@@ -126,7 +126,7 @@
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
 //!         Io(err: std::io::Error) {
-//!             display_fn(X, "{}: {}", X.description(), err)
+//!             display_fn(x, "{}: {}", x.description(), err)
 //!         }
 //!         Utf8(err: std::str::Utf8Error) {
 //!             display_fn(self_, "{}, valid up to {}", self_.description(), err.valid_up_to())
