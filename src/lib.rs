@@ -126,10 +126,10 @@
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
 //!         Io(err: std::io::Error) {
-//!             display_fn(x) -> ("{}: {}", x.description(), err)
+//!             display(x) -> ("{}: {}", x.description(), err)
 //!         }
 //!         Utf8(err: std::str::Utf8Error) {
-//!             display_fn(self_) -> ("{}, valid up to {}", self_.description(), err.valid_up_to())
+//!             display(self_) -> ("{}, valid up to {}", self_.description(), err.valid_up_to())
 //!         }
 //!     }
 //! }
@@ -439,14 +439,14 @@ macro_rules! quick_error {
         )*
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident
-        { display_fn($self_:ident) -> ($($exprs:tt)*) $($tail:tt)* }
+        { display($self_:tt) -> ($($exprs:tt)*) $($tail:tt)* }
     ) => {
-        |$self_: &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
+        |quick_error!(IDENT $self_): &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident
-        { display($($exprs:tt)*) $($tail:tt)* }
+        { display($pattern:expr, $($exprs:tt)*) $($tail:tt)* }
     ) => {
-        |_, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
+        |_, f: &mut ::std::fmt::Formatter| { write!(f, $pattern, $($exprs)*) }
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident
         { $t:tt $($tail:tt)* }
@@ -560,9 +560,9 @@ macro_rules! quick_error {
     // anything else.
     // This is to contrast FIND_* clauses which just find stuff they need and
     // skip everything else completely
-    (ERROR_CHECK display($($exprs:tt)*) $($tail:tt)*)
+    (ERROR_CHECK display($self_:tt) -> ($($exprs:tt)*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
-    (ERROR_CHECK display_fn($self_:ident) -> ($($exprs:tt)*) $($tail:tt)*)
+    (ERROR_CHECK display($pattern: expr, $($exprs:tt)*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK description($expr:expr) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
@@ -575,6 +575,8 @@ macro_rules! quick_error {
     (ERROR_CHECK from($fvar:ident : $ftyp:ty) -> ($($e:expr),*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK) => {};
+    // Utility functions
+    (IDENT $ident: ident) => { $ident }
 }
 
 #[cfg(test)]
@@ -623,7 +625,7 @@ mod test {
             /// I/O error with some context
             IoAt(place: &'static str, err: io::Error) {
                 cause(err)
-                display_fn(self_) -> ("{} {}: {}", self_.description(), place, err)
+                display(self_) -> ("{} {}: {}", self_.description(), place, err)
                 description("io error at")
                 from(s: String) -> ("idea",
                                     io::Error::new(io::ErrorKind::Other, s))
