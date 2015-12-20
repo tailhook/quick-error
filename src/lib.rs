@@ -114,7 +114,7 @@
 //! ```
 //!
 //! If you need a reference to the error when `Display`ing, you can instead use
-//! `display_fn(x, pattern, ..args)`, where `x` sets the name of the reference.
+//! `display(x) -> (pattern, ..args)`, where `x` sets the name of the reference.
 //!
 //! ```rust
 //! # #[macro_use] extern crate quick_error;
@@ -126,10 +126,10 @@
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
 //!         Io(err: std::io::Error) {
-//!             display_fn(x, "{}: {}", x.description(), err)
+//!             display_fn(x) -> ("{}: {}", x.description(), err)
 //!         }
 //!         Utf8(err: std::str::Utf8Error) {
-//!             display_fn(self_, "{}, valid up to {}", self_.description(), err.valid_up_to())
+//!             display_fn(self_) -> ("{}, valid up to {}", self_.description(), err.valid_up_to())
 //!         }
 //!     }
 //! }
@@ -439,15 +439,14 @@ macro_rules! quick_error {
         )*
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident
-        { display($($exprs:tt)*) $($tail:tt)* }
-    ) => {
-        |self_: &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
-    };
-    (FIND_DISPLAY_IMPL $name:ident $item:ident
-        //implements { display_fn(|$me:ident, $fmt:ident| $($body:block)*) $($tail:tt)* }
-        { display_fn($self_:ident, $($exprs:tt)*) $($tail:tt)* }
+        { display_fn($self_:ident) -> ($($exprs:tt)*) $($tail:tt)* }
     ) => {
         |$self_: &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
+    };
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
+        { display($($exprs:tt)*) $($tail:tt)* }
+    ) => {
+        |_, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident
         { $t:tt $($tail:tt)* }
@@ -563,7 +562,7 @@ macro_rules! quick_error {
     // skip everything else completely
     (ERROR_CHECK display($($exprs:tt)*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
-    (ERROR_CHECK display_fn($($exprs:tt)*) $($tail:tt)*)
+    (ERROR_CHECK display_fn($self_:ident) -> ($($exprs:tt)*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK description($expr:expr) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
@@ -624,7 +623,7 @@ mod test {
             /// I/O error with some context
             IoAt(place: &'static str, err: io::Error) {
                 cause(err)
-                display_fn(self_, "{} {}: {}", self_.description(), place, err)
+                display_fn(self_) -> ("{} {}: {}", self_.description(), place, err)
                 description("io error at")
                 from(s: String) -> ("idea",
                                     io::Error::new(io::ErrorKind::Other, s))
