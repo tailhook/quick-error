@@ -444,6 +444,11 @@ macro_rules! quick_error {
         |quick_error!(IDENT $self_): &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident
+        { display($pattern:expr) $($tail:tt)* }
+    ) => {
+        |_, f: &mut ::std::fmt::Formatter| { write!(f, $pattern) }
+    };
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
         { display($pattern:expr, $($exprs:tt)*) $($tail:tt)* }
     ) => {
         |_, f: &mut ::std::fmt::Formatter| { write!(f, $pattern, $($exprs)*) }
@@ -562,6 +567,8 @@ macro_rules! quick_error {
     // skip everything else completely
     (ERROR_CHECK display($self_:tt) -> ($($exprs:tt)*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
+    (ERROR_CHECK display($pattern: expr) $($tail:tt)*)
+    => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK display($pattern: expr, $($exprs:tt)*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK description($expr:expr) $($tail:tt)*)
@@ -633,6 +640,9 @@ mod test {
             Discard {
                 from(&'static str)
             }
+            Singleton {
+                display("Just a string")
+            }
         }
     }
 
@@ -694,6 +704,12 @@ mod test {
         let io1: IoWrapper = From::from("hello");
         assert_eq!(format!("{}", io1), "Discard".to_string());
         assert!(io1.cause().is_none());
+    }
+
+    #[test]
+    fn io_wrapper_signleton() {
+        let io1: IoWrapper = IoWrapper::Singleton;
+        assert_eq!(format!("{}", io1), "Just a string".to_string());
     }
 
 }
