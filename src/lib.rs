@@ -398,9 +398,8 @@ macro_rules! quick_error {
                     $(
                         &$name::$item $( ( $(ref $var),* ) )* => {
                             let display_fn = quick_error!(FIND_DISPLAY_IMPL
-                                $name::$item
-                                implements { $($funcs)* }
-                                _ => display("{}", ::std::error::Error::description(self)));
+                                $name $item
+                                { $($funcs)* });
 
                             display_fn(self, fmt)
                         }
@@ -439,33 +438,30 @@ macro_rules! quick_error {
                 { $($funcs)* });
         )*
     };
-    (FIND_DISPLAY_IMPL $name:ident::$item:ident
-        implements { display($($exprs:tt)*) $($tail:tt)* }
-        _ => $($default:tt)*
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
+        { display($($exprs:tt)*) $($tail:tt)* }
     ) => {
         |self_: &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
     };
-    (FIND_DISPLAY_IMPL $name:ident::$item:ident
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
         //implements { display_fn(|$me:ident, $fmt:ident| $($body:block)*) $($tail:tt)* }
-        implements { display_fn($self_:ident, $($exprs:tt)*) $($tail:tt)* }
-        _ => $($default:tt)*
+        { display_fn($self_:ident, $($exprs:tt)*) $($tail:tt)* }
     ) => {
         |$self_: &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
     };
-    (FIND_DISPLAY_IMPL $name:ident::$item:ident
-        implements { $t:tt $($tail:tt)* }
-        _ => $($default:tt)*
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
+        { $t:tt $($tail:tt)* }
     ) => {
         quick_error!(FIND_DISPLAY_IMPL
-            $name::$item
-            implements { $($tail)* }
-            _ => $($default)*)
+            $name $item
+            { $($tail)* })
     };
-    (FIND_DISPLAY_IMPL $name:ident::$item:ident
-        implements { }
-        _ => display($($exprs:tt)*)
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
+        { }
     ) => {
-        |self_: &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
+        |self_: &$name, f: &mut ::std::fmt::Formatter| {
+            write!(f, "{}", ::std::error::Error::description(self_))
+        }
     };
     (FIND_DESCRIPTION_IMPL $item:ident $me:ident $fmt:ident
         [ $( ( $($var:ident)* ) )* ]
