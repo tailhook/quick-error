@@ -113,6 +113,28 @@
 //! }
 //! ```
 //!
+//! If you need a reference to the error when `Display`ing, you can instead use
+//! `display_fn(X, pattern, ..args)`, where `X` sets the name of the reference.
+//!
+//! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//! #
+//! use std::error::Error; // put methods like `description()` of this trait into scope
+//!
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         Io(err: std::io::Error) {
+//!             display_fn(X, "{}: {}", X.description(), err)
+//!         }
+//!         Utf8(err: std::str::Utf8Error) {
+//!             display_fn(self_, "{}, valid up to {}", self_.description(), err.valid_up_to())
+//!         }
+//!     }
+//! }
+//! ```
+//!
 //! To convert to the type from any other, use one of the three forms of
 //! `from` clause.
 //!
@@ -180,7 +202,6 @@
 //! in single variant of enumeration. Docstrings are also okay.
 //! Empty braces can be omitted as of quick_error 0.1.3.
 //!
-
 
 /// Main macro that does all the work
 #[macro_export]
@@ -376,9 +397,12 @@ macro_rules! quick_error {
                 match self {
                     $(
                         &$name::$item $( ( $(ref $var),* ) )* => {
-                            quick_error!(FIND_DISPLAY_IMPL
-                                $item self fmt [ $( ( $($var)* ) )* ]
-                                { $($funcs)* })
+                            let display_fn = quick_error!(FIND_DISPLAY_IMPL
+                                $name::$item
+                                implements { $($funcs)* }
+                                _ => display("{}", ::std::error::Error::description(self)));
+
+                            display_fn(self, fmt)
                         }
                     )*
                 }
@@ -415,25 +439,33 @@ macro_rules! quick_error {
                 { $($funcs)* });
         )*
     };
-    (FIND_DISPLAY_IMPL $item:ident $me:ident $fmt:ident
-        [ $( ( $($var:ident)* ) )* ]
-        { display($($exprs:tt)*) $($tail:tt)* }
+    (FIND_DISPLAY_IMPL $name:ident::$item:ident
+        implements { display($($exprs:tt)*) $($tail:tt)* }
+        _ => $($default:tt)*
     ) => {
-        write!($fmt, $($exprs)*)
+        |self_: &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
     };
-    (FIND_DISPLAY_IMPL $item:ident $me:ident $fmt:ident
-        [ $( ( $($var:ident)* ) )* ]
-        { $t:tt $($tail:tt)* }
+    (FIND_DISPLAY_IMPL $name:ident::$item:ident
+        //implements { display_fn(|$me:ident, $fmt:ident| $($body:block)*) $($tail:tt)* }
+        implements { display_fn($self_:ident, $($exprs:tt)*) $($tail:tt)* }
+        _ => $($default:tt)*
+    ) => {
+        |$self_: &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
+    };
+    (FIND_DISPLAY_IMPL $name:ident::$item:ident
+        implements { $t:tt $($tail:tt)* }
+        _ => $($default:tt)*
     ) => {
         quick_error!(FIND_DISPLAY_IMPL
-            $item $me $fmt [ $( ( $($var)* ) )* ]
-            { $($tail)* })
+            $name::$item
+            implements { $($tail)* }
+            _ => $($default)*)
     };
-    (FIND_DISPLAY_IMPL $item:ident $me:ident $fmt:ident
-        [ $( ( $($var:ident)* ) )* ]
-        { }
+    (FIND_DISPLAY_IMPL $name:ident::$item:ident
+        implements { }
+        _ => display($($exprs:tt)*)
     ) => {
-        write!($fmt, "{}", ::std::error::Error::description($me))
+        |self_: &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
     };
     (FIND_DESCRIPTION_IMPL $item:ident $me:ident $fmt:ident
         [ $( ( $($var:ident)* ) )* ]
@@ -535,6 +567,8 @@ macro_rules! quick_error {
     // skip everything else completely
     (ERROR_CHECK display($($exprs:tt)*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
+    (ERROR_CHECK display_fn($($exprs:tt)*) $($tail:tt)*)
+    => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK description($expr:expr) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK cause($expr:expr) $($tail:tt)*)
@@ -594,7 +628,7 @@ mod test {
             /// I/O error with some context
             IoAt(place: &'static str, err: io::Error) {
                 cause(err)
-                display("Error at {}: {}", place, err)
+                display_fn(self_, "{} {}: {}", self_.description(), place, err)
                 description("io error at")
                 from(s: String) -> ("idea",
                                     io::Error::new(io::ErrorKind::Other, s))
@@ -633,7 +667,7 @@ mod test {
         let err: &Error = &IoWrapper::IoAt("file",
             io::Error::new(io::ErrorKind::NotFound, io1));
         assert_eq!(format!("{}", err),
-            "Error at file: I/O error: some error".to_string());
+            "io error at file: I/O error: some error".to_string());
         assert_eq!(format!("{:?}", err), "IoAt(\"file\", Error { \
             repr: Custom(Custom { kind: NotFound, \
                 error: Io(Error { repr: Custom(Custom { \
@@ -654,7 +688,7 @@ mod test {
     #[test]
     fn io_wrapper_custom_from() {
         let io1: IoWrapper = From::from("Stringy".to_string());
-        assert_eq!(format!("{}", io1), "Error at idea: Stringy".to_string());
+        assert_eq!(format!("{}", io1), "io error at idea: Stringy".to_string());
         assert_eq!(io1.cause().unwrap().description(), "Stringy");
     }
 
