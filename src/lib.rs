@@ -648,7 +648,10 @@ mod test {
         let io1: IoWrapper = From::from(io::Error::from_raw_os_error(2));
         assert_eq!(format!("{}", io1),
             "I/O error: No such file or directory (os error 2)".to_string());
-        assert_eq!(io1.cause().unwrap().description(), "os error");
+        let descr = io1.cause().unwrap().description();
+        assert!(descr == "os error" // rust <= 1.6
+            || descr == "entity not found" // rust 1.7 (probably, nightly)
+            );
     }
 
     #[test]
