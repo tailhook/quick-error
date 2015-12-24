@@ -113,6 +113,28 @@
 //! }
 //! ```
 //!
+//! If you need a reference to the error when `Display`ing, you can instead use
+//! `display(x) -> (pattern, ..args)`, where `x` sets the name of the reference.
+//!
+//! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//! #
+//! use std::error::Error; // put methods like `description()` of this trait into scope
+//!
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         Io(err: std::io::Error) {
+//!             display(x) -> ("{}: {}", x.description(), err)
+//!         }
+//!         Utf8(err: std::str::Utf8Error) {
+//!             display(self_) -> ("{}, valid up to {}", self_.description(), err.valid_up_to())
+//!         }
+//!     }
+//! }
+//! ```
+//!
 //! To convert to the type from any other, use one of the three forms of
 //! `from` clause.
 //!
@@ -180,7 +202,6 @@
 //! in single variant of enumeration. Docstrings are also okay.
 //! Empty braces can be omitted as of quick_error 0.1.3.
 //!
-
 
 /// Main macro that does all the work
 #[macro_export]
@@ -376,9 +397,11 @@ macro_rules! quick_error {
                 match self {
                     $(
                         &$name::$item $( ( $(ref $var),* ) )* => {
-                            quick_error!(FIND_DISPLAY_IMPL
-                                $item self fmt [ $( ( $($var)* ) )* ]
-                                { $($funcs)* })
+                            let display_fn = quick_error!(FIND_DISPLAY_IMPL
+                                $name $item
+                                { $($funcs)* });
+
+                            display_fn(self, fmt)
                         }
                     )*
                 }
@@ -415,25 +438,34 @@ macro_rules! quick_error {
                 { $($funcs)* });
         )*
     };
-    (FIND_DISPLAY_IMPL $item:ident $me:ident $fmt:ident
-        [ $( ( $($var:ident)* ) )* ]
-        { display($($exprs:tt)*) $($tail:tt)* }
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
+        { display($self_:tt) -> ($($exprs:tt)*) $($tail:tt)* }
     ) => {
-        write!($fmt, $($exprs)*)
+        |quick_error!(IDENT $self_): &$name, f: &mut ::std::fmt::Formatter| { write!(f, $($exprs)*) }
     };
-    (FIND_DISPLAY_IMPL $item:ident $me:ident $fmt:ident
-        [ $( ( $($var:ident)* ) )* ]
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
+        { display($pattern:expr) $($tail:tt)* }
+    ) => {
+        |_, f: &mut ::std::fmt::Formatter| { write!(f, $pattern) }
+    };
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
+        { display($pattern:expr, $($exprs:tt)*) $($tail:tt)* }
+    ) => {
+        |_, f: &mut ::std::fmt::Formatter| { write!(f, $pattern, $($exprs)*) }
+    };
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
         { $t:tt $($tail:tt)* }
     ) => {
         quick_error!(FIND_DISPLAY_IMPL
-            $item $me $fmt [ $( ( $($var)* ) )* ]
+            $name $item
             { $($tail)* })
     };
-    (FIND_DISPLAY_IMPL $item:ident $me:ident $fmt:ident
-        [ $( ( $($var:ident)* ) )* ]
+    (FIND_DISPLAY_IMPL $name:ident $item:ident
         { }
     ) => {
-        write!($fmt, "{}", ::std::error::Error::description($me))
+        |self_: &$name, f: &mut ::std::fmt::Formatter| {
+            write!(f, "{}", ::std::error::Error::description(self_))
+        }
     };
     (FIND_DESCRIPTION_IMPL $item:ident $me:ident $fmt:ident
         [ $( ( $($var:ident)* ) )* ]
@@ -533,7 +565,11 @@ macro_rules! quick_error {
     // anything else.
     // This is to contrast FIND_* clauses which just find stuff they need and
     // skip everything else completely
-    (ERROR_CHECK display($($exprs:tt)*) $($tail:tt)*)
+    (ERROR_CHECK display($self_:tt) -> ($($exprs:tt)*) $($tail:tt)*)
+    => { quick_error!(ERROR_CHECK $($tail)*); };
+    (ERROR_CHECK display($pattern: expr) $($tail:tt)*)
+    => { quick_error!(ERROR_CHECK $($tail)*); };
+    (ERROR_CHECK display($pattern: expr, $($exprs:tt)*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK description($expr:expr) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
@@ -546,6 +582,8 @@ macro_rules! quick_error {
     (ERROR_CHECK from($fvar:ident : $ftyp:ty) -> ($($e:expr),*) $($tail:tt)*)
     => { quick_error!(ERROR_CHECK $($tail)*); };
     (ERROR_CHECK) => {};
+    // Utility functions
+    (IDENT $ident: ident) => { $ident }
 }
 
 #[cfg(test)]
@@ -594,13 +632,16 @@ mod test {
             /// I/O error with some context
             IoAt(place: &'static str, err: io::Error) {
                 cause(err)
-                display("Error at {}: {}", place, err)
+                display(self_) -> ("{} {}: {}", self_.description(), place, err)
                 description("io error at")
                 from(s: String) -> ("idea",
                                     io::Error::new(io::ErrorKind::Other, s))
             }
             Discard {
                 from(&'static str)
+            }
+            Singleton {
+                display("Just a string")
             }
         }
     }
@@ -633,7 +674,7 @@ mod test {
         let err: &Error = &IoWrapper::IoAt("file",
             io::Error::new(io::ErrorKind::NotFound, io1));
         assert_eq!(format!("{}", err),
-            "Error at file: I/O error: some error".to_string());
+            "io error at file: I/O error: some error".to_string());
         assert_eq!(format!("{:?}", err), "IoAt(\"file\", Error { \
             repr: Custom(Custom { kind: NotFound, \
                 error: Io(Error { repr: Custom(Custom { \
@@ -657,7 +698,7 @@ mod test {
     #[test]
     fn io_wrapper_custom_from() {
         let io1: IoWrapper = From::from("Stringy".to_string());
-        assert_eq!(format!("{}", io1), "Error at idea: Stringy".to_string());
+        assert_eq!(format!("{}", io1), "io error at idea: Stringy".to_string());
         assert_eq!(io1.cause().unwrap().description(), "Stringy");
     }
 
@@ -666,6 +707,12 @@ mod test {
         let io1: IoWrapper = From::from("hello");
         assert_eq!(format!("{}", io1), "Discard".to_string());
         assert!(io1.cause().is_none());
+    }
+
+    #[test]
+    fn io_wrapper_signleton() {
+        let io1: IoWrapper = IoWrapper::Singleton;
+        assert_eq!(format!("{}", io1), "Just a string".to_string());
     }
 
 }

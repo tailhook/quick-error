@@ -28,11 +28,11 @@ Here is the comprehensive example:
             }
             Other(descr: &'static str) {
                 description(descr)
-                display("Error: {}", descr)
+                display("Errorr {}", descr)
             }
             IoAt(place: &'static str, err: io::Error) {
                 cause(err)
-                display("Error at {}: {}", place, err)
+                display(me) -> ("{} {}: {}", me.description(), place, err)
                 description("io error at")
                 from(s: String) -> ("some string",
                                     io::Error::new(io::ErrorKind::Other, s))
