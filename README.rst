@@ -28,7 +28,7 @@ Here is the comprehensive example:
             }
             Other(descr: &'static str) {
                 description(descr)
-                display("Errorr {}", descr)
+                display("Error {}", descr)
             }
             IoAt(place: &'static str, err: io::Error) {
                 cause(err)

@@ -203,6 +203,7 @@
 //! Empty braces can be omitted as of quick_error 0.1.3.
 //!
 
+
 /// Main macro that does all the work
 #[macro_export]
 macro_rules! quick_error {
@@ -210,21 +211,20 @@ macro_rules! quick_error {
         pub enum $name:ident { $($chunks:tt)* }
     ) => {
         quick_error!(SORT [pub enum $name $(#[$meta])* ]
-            enum [] items [] buf []
+            items [] buf []
             queue [ $($chunks)* ]);
     };
     (   $(#[$meta:meta])*
         enum $name:ident { $($chunks:tt)* }
     ) => {
         quick_error!(SORT [enum $name $(#[$meta])* ]
-            enum [] items [] buf []
+            items [] buf []
             queue [ $($chunks)* ]);
     };
     // Queue is empty, can do the work
     (SORT [enum $name:ident $(#[$meta:meta])* ]
-        enum [ $( $(#[$emeta:meta])*
-                  => $eitem:ident $( ( $($etyp:ty),* ) )* )* ]
-        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+        items [ $( $(#[$imeta:imeta])*
+                  => $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
                                 { $($ifuncs:tt)* } )* ]
         buf [ ]
         queue [ ]
@@ -232,8 +232,8 @@ macro_rules! quick_error {
         $(#[$meta])*
         enum $name {
            $(
-               $(#[$emeta])*
-               $eitem $(( $($etyp),* ))*,
+               $(#[$imeta])*
+               $iitem $(( $($ityp),* ))*,
            )*
         }
         quick_error!(IMPLEMENTATIONS $name { $(
@@ -244,9 +244,8 @@ macro_rules! quick_error {
         )*
     };
     (SORT [pub enum $name:ident $(#[$meta:meta])* ]
-        enum [ $( $(#[$emeta:meta])*
-                  => $eitem:ident $( ( $($etyp:ty),* ) )* )* ]
-        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+        items [ $( $(#[$imeta:meta])*
+                  => $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
                                 { $($ifuncs:tt)* } )* ]
         buf [ ]
         queue [ ]
@@ -254,8 +253,8 @@ macro_rules! quick_error {
         $(#[$meta])*
         pub enum $name {
            $(
-               $(#[$emeta])*
-               $eitem $(( $($etyp),* ))*,
+               $(#[$imeta])*
+               $iitem $(( $($ityp),* ))*,
            )*
         }
         quick_error!(IMPLEMENTATIONS $name { $(
@@ -267,39 +266,35 @@ macro_rules! quick_error {
     };
     // Add meta to buffer
     (SORT [$($def:tt)*]
-        enum [ $( $(#[$emeta:meta])*
-                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
-        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+        items [ $( $(#[$imeta:meta])*
+                  => $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
                                 { $($ifuncs:tt)* } )* ]
         buf [ $( #[$bmeta:meta] )* ]
         queue [ #[$qmeta:meta] $($tail:tt)* ]
     ) => {
         quick_error!(SORT [$($def)* ]
-            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*]
-            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )* ]
+            items [$( $(#[$imeta])* => $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )* ]
             buf [ $( #[$bmeta] )* #[$qmeta] ]
             queue [ $($tail)* ]);
     };
     // Add ident to buffer
     (SORT [$($def:tt)*]
-        enum [ $( $(#[$emeta:meta])*
-                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
-        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+        items [ $( $(#[$imeta:meta])*
+                  => $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
                                 { $($ifuncs:tt)* } )* ]
         buf [ $( #[$bmeta:meta] )* ]
         queue [ $qitem:ident $($tail:tt)* ]
     ) => {
         quick_error!(SORT [$($def)* ]
-            enum [ $( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )* ]
-            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )* ]
+            items [ $( $(#[$imeta])*
+                      => $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )* ]
             buf [ $(#[$bmeta])* => $qitem ]
             queue [ $($tail)* ]);
     };
     // Flush buffer on meta after ident
     (SORT [$($def:tt)*]
-        enum [ $( $(#[$emeta:meta])*
-                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
-        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+        items [ $( $(#[$imeta:meta])*
+                  => $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
                                 { $($ifuncs:tt)* } )* ]
         buf [ $( #[$bmeta:meta] )*
             => $bitem:ident $(( $($bvar:ident : $btyp:ty),* ))* ]
@@ -308,77 +303,67 @@ macro_rules! quick_error {
         quick_error!(SORT [$($def)* ]
             enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*
                      $(#[$bmeta])* => $bitem $(( $($btyp),* ))*]
-            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
+            items [ $( $(#[$imeta:imeta])*
+                      => $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
                      $bitem $(( $($bvar:$btyp),* ))* {} ]
             buf [ #[$qmeta] ]
             queue [ $($tail)* ]);
     };
     // Add parenthesis
     (SORT [$($def:tt)*]
-        enum [ $( $(#[$emeta:meta])*
-                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
-        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+        items [ $( $(#[$imeta:meta])*
+                  => $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
                                 { $($ifuncs:tt)* } )* ]
         buf [ $( #[$bmeta:meta] )* => $bitem:ident ]
         queue [ ( $( $qvar:ident : $qtyp:ty ),* ) $($tail:tt)* ]
     ) => {
         quick_error!(SORT [$($def)* ]
-            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*]
-            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )* ]
+            items [$( $(#[$imeta])* => $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )* ]
             buf [ $( #[$bmeta] )* => $bitem ( $( $qvar:$qtyp ),* ) ]
             queue [ $($tail)* ]);
     };
     // Add braces and flush always on braces
     (SORT [$($def:tt)*]
-        enum [ $( $(#[$emeta:meta])*
-                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
-        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+        items [ $( $(#[$imeta:meta])*
+                  => $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
                                 { $($ifuncs:tt)* } )* ]
         buf [ $( #[$bmeta:meta] )*
                  => $bitem:ident $(( $($bvar:ident : $btyp:ty),* ))* ]
         queue [ { $($qfuncs:tt)* } $($tail:tt)* ]
     ) => {
         quick_error!(SORT [$($def)* ]
-            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*
-                     $(#[$bmeta])* => $bitem $(( $($btyp),* ))* ]
-            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
-                     $bitem $(( $($bvar:$btyp),* ))* { $($qfuncs)* } ]
+            items [$( $(#[$imeta])* => $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
+                     $(#[$bmeta])* => $bitem $(( $($bvar:$btyp),* ))* { $($qfuncs)* } ]
             buf [ ]
             queue [ $($tail)* ]);
     };
     // Flush buffer on double ident
     (SORT [$($def:tt)*]
-        enum [ $( $(#[$emeta:meta])*
-                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
-        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+        items [ $( $(#[$imeta:meta])*
+                  => $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
                                 { $($ifuncs:tt)* } )* ]
         buf [ $( #[$bmeta:meta] )*
                  => $bitem:ident $(( $($bvar:ident : $btyp:ty),* ))* ]
         queue [ $qitem:ident $($tail:tt)* ]
     ) => {
         quick_error!(SORT [$($def)* ]
-            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*
-                     $(#[$bmeta])* => $bitem $(( $($btyp),* ))*]
-            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
-                     $bitem $(( $($bvar:$btyp),* ))* {} ]
+            items [$( $(#[$imeta])* => $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
+                     $(#[$bmeta])* => $bitem $(( $($bvar:$btyp),* ))* {} ]
             buf [ => $qitem ]
             queue [ $($tail)* ]);
     };
     // Flush buffer on end
     (SORT [$($def:tt)*]
-        enum [ $( $(#[$emeta:meta])*
-                  => $eitem:ident $(( $($etyp:ty),* ))* )* ]
-        items [ $( $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
+        items [ $( $(#[$imeta:meta])*
+                  => $iitem:ident $(( $($ivar:ident : $ityp:ty),* ))*
                                 { $($ifuncs:tt)* } )* ]
         buf [ $( #[$bmeta:meta] )*
             => $bitem:ident $(( $($bvar:ident : $btyp:ty),* ))* ]
         queue [ ]
     ) => {
         quick_error!(SORT [$($def)* ]
-            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*
-                     $(#[$bmeta])* => $bitem $(( $($btyp),* ))* ]
-            items [ $( $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
-                     $bitem $(( $($bvar:$btyp),* ))* {} ]
+            items [$( $(#[$imeta])* => $iitem $(( $($ivar:$ityp),* ))* { $($ifuncs)* } )*
+                     $(#[$bmeta])* => $bitem $(( $($bvar:$btyp),* ))* {} ]
             buf [ ]
             queue [ ]);
     };
@@ -588,7 +573,9 @@ macro_rules! quick_error {
 
 #[cfg(test)]
 mod test {
-    use std::io;
+    use std::num::ParseFloatError;
+    use std::str::Utf8Error;
+    use std::string::FromUtf8Error;
     use std::error::Error;
 
     quick_error! {
@@ -616,26 +603,25 @@ mod test {
     }
 
     quick_error! {
-        #[derive(Debug)]
-        pub enum IoWrapper {
-            /// I/O Error
-            Io(err: io::Error) {
+        #[derive(Debug, PartialEq)]
+        pub enum Wrapper {
+            /// ParseFloat Error
+            ParseFloatError(err: ParseFloatError) {
                 from()
                 description(err.description())
-                display("I/O error: {err}", err=err)
+                display("parse float error: {err}", err=err)
                 cause(err)
             }
             Other(descr: &'static str) {
                 description(descr)
                 display("Error: {}", descr)
             }
-            /// I/O error with some context
-            IoAt(place: &'static str, err: io::Error) {
+            /// FromUtf8 Error
+            FromUtf8Error(err: Utf8Error, source: Vec<u8>) {
                 cause(err)
-                display(self_) -> ("{} {}: {}", self_.description(), place, err)
-                description("io error at")
-                from(s: String) -> ("idea",
-                                    io::Error::new(io::ErrorKind::Other, s))
+                display(me) -> ("{desc} at index {pos}: {err}", desc=me.description(), pos=err.valid_up_to(), err=err)
+                description("utf8 error")
+                from(err: FromUtf8Error) -> (err.utf8_error().clone(), err.into_bytes())
             }
             Discard {
                 from(&'static str)
@@ -647,72 +633,68 @@ mod test {
     }
 
     #[test]
-    fn io_wrapper_err() {
-        let io1 = IoWrapper::Io(
-            io::Error::new(io::ErrorKind::Other, "some error"));
-        assert_eq!(format!("{}", io1), "I/O error: some error".to_string());
-        assert_eq!(format!("{:?}", io1),
-            "Io(Error { repr: Custom(Custom { kind: Other, \
-             error: StringError(\"some error\") }) })".to_string());
-        assert_eq!(io1.description(), "some error");
-        assert_eq!(io1.cause().unwrap().description(), "some error");
+    fn wrapper_err() {
+        let cause = "one and a half times pi".parse::<f32>().unwrap_err();
+        let err = Wrapper::ParseFloatError(cause.clone());
+        assert_eq!(format!("{}", err), format!("parse float error: {}", cause));
+        assert_eq!(format!("{:?}", err), format!("ParseFloatError({:?})", cause));
+        assert_eq!(err.description(), cause.description());
+        assert_eq!(format!("{:?}", err.cause().unwrap()), format!("{:?}", cause));
     }
 
     #[test]
-    fn io_wrapper_trait_str() {
-        let err: &Error = &IoWrapper::Other("hello");
-        assert_eq!(format!("{}", err), "Error: hello".to_string());
-        assert_eq!(format!("{:?}", err), "Other(\"hello\")".to_string());
-        assert_eq!(err.description(), "hello".to_string());
+    fn wrapper_trait_str() {
+        let desc = "hello";
+        let err: &Error = &Wrapper::Other(desc);
+        assert_eq!(format!("{}", err), format!("Error: {}", desc));
+        assert_eq!(format!("{:?}", err), format!("Other({:?})", desc));
+        assert_eq!(err.description(), desc);
         assert!(err.cause().is_none());
     }
 
     #[test]
-    fn io_wrapper_trait_two_fields() {
-        let io1 = IoWrapper::Io(
-            io::Error::new(io::ErrorKind::Other, "some error"));
-        let err: &Error = &IoWrapper::IoAt("file",
-            io::Error::new(io::ErrorKind::NotFound, io1));
-        assert_eq!(format!("{}", err),
-            "io error at file: I/O error: some error".to_string());
-        assert_eq!(format!("{:?}", err), "IoAt(\"file\", Error { \
-            repr: Custom(Custom { kind: NotFound, \
-                error: Io(Error { repr: Custom(Custom { \
-                    kind: Other, error: StringError(\"some error\") \
-            }) }) }) })".to_string());
-        assert_eq!(err.description(), "io error at");
-        assert_eq!(err.cause().unwrap().description(), "some error");
+    fn wrapper_trait_two_fields() {
+        let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
+        let cause = String::from_utf8(invalid_utf8.clone()).unwrap_err().utf8_error();
+        let err: &Error = &Wrapper::FromUtf8Error(cause.clone(), invalid_utf8.clone());
+        assert_eq!(format!("{}", err), format!("{desc} at index {pos}: {cause}", desc=err.description(), pos=cause.valid_up_to(), cause=cause));
+        assert_eq!(format!("{:?}", err), format!("FromUtf8Error({:?}, {:?})", cause, invalid_utf8));
+        assert_eq!(err.description(), "utf8 error");
+        assert_eq!(format!("{:?}", err.cause().unwrap()), format!("{:?}", cause));
     }
 
     #[test]
-    fn io_wrapper_from() {
-        let io1: IoWrapper = From::from(io::Error::from_raw_os_error(2));
-        assert_eq!(format!("{}", io1),
-            "I/O error: No such file or directory (os error 2)".to_string());
-        let descr = io1.cause().unwrap().description();
-        assert!(descr == "os error" // rust <= 1.6
-            || descr == "entity not found" // rust 1.7 (probably, nightly)
-            );
+    fn wrapper_from() {
+        let cause = "one and a half times pi".parse::<f32>().unwrap_err();
+        let err = Wrapper::ParseFloatError(cause.clone());
+        let err_from: Wrapper = From::from(cause);
+        assert_eq!(err_from, err);
     }
 
     #[test]
-    fn io_wrapper_custom_from() {
-        let io1: IoWrapper = From::from("Stringy".to_string());
-        assert_eq!(format!("{}", io1), "io error at idea: Stringy".to_string());
-        assert_eq!(io1.cause().unwrap().description(), "Stringy");
+    fn wrapper_custom_from() {
+        let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
+        let cause = String::from_utf8(invalid_utf8.clone()).unwrap_err();
+        let err = Wrapper::FromUtf8Error(cause.utf8_error().clone(), invalid_utf8);
+        let err_from: Wrapper = From::from(cause);
+        assert_eq!(err_from, err);
     }
 
     #[test]
-    fn io_wrapper_discard() {
-        let io1: IoWrapper = From::from("hello");
-        assert_eq!(format!("{}", io1), "Discard".to_string());
-        assert!(io1.cause().is_none());
+    fn wrapper_discard() {
+        let err: Wrapper = From::from("hello");
+        assert_eq!(format!("{}", err), format!("Discard"));
+        assert_eq!(format!("{:?}", err), format!("Discard"));
+        assert_eq!(err.description(), "Discard");
+        assert!(err.cause().is_none());
     }
 
     #[test]
-    fn io_wrapper_signleton() {
-        let io1: IoWrapper = IoWrapper::Singleton;
-        assert_eq!(format!("{}", io1), "Just a string".to_string());
+    fn wrapper_singleton() {
+        let err: Wrapper = Wrapper::Singleton;
+        assert_eq!(format!("{}", err), format!("Just a string"));
+        assert_eq!(format!("{:?}", err), format!("Singleton"));
+        assert_eq!(err.description(), "Singleton");
+        assert!(err.cause().is_none());
     }
-
 }
