@@ -8,10 +8,11 @@ A macro which makes error types pleasant to write.
 
 Features:
 
-* Define enum type with arbitrary parameters (not struct variants for now)
+* Define enum type with arbitrary parameters
 * Concise notation of ``Display`` and ``Error`` traits
 * Full control of ``Display`` and ``Error`` trait implementation
 * Any number of ``From`` traits
+* Support for all enum-variants ``Unit``, ``Tuple`` and ``Struct``
 
 Here is the comprehensive example:
 
@@ -30,12 +31,14 @@ Here is the comprehensive example:
                 description(descr)
                 display("Error {}", descr)
             }
-            IoAt(place: &'static str, err: io::Error) {
+            IoAt { place: &'static str, err: io::Error } {
                 cause(err)
                 display(me) -> ("{} {}: {}", me.description(), place, err)
                 description("io error at")
-                from(s: String) -> ("some string",
-                                    io::Error::new(io::ErrorKind::Other, s))
+                from(s: String) -> {
+                    place: "some string",
+                    err: io::Error::new(io::ErrorKind::Other, s)
+                }
             }
             Discard {
                 from(&'static str)
