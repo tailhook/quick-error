@@ -319,13 +319,26 @@ macro_rules! quick_error {
             queue [$( $tail )*]
         );
     };
-    // Add struct enum-variant
+    // Add struct enum-variant - e.g. { descr: &'static str }
     (SORT [$( $def:tt )*]
         items [$($( #[$imeta:meta] )*
                   => $iitem:ident: $imode:tt [$( $ivar:ident: $ityp:ty ),*]
                                 {$( $ifuncs:tt )*} )* ]
         buf [$( #[$bmeta:meta] )* => $bitem:ident: UNIT [ ] ]
-        queue [{ $( $qvar:ident: $qtyp:ty ),+ } $( $tail:tt )*]
+        queue [{ $( $qvar:ident: $qtyp:ty ),+} $( $tail:tt )*]
+    ) => {
+        quick_error!(SORT [$( $def )*]
+            items [$( $(#[$imeta])* => $iitem: $imode [$( $ivar:$ityp ),*] {$( $ifuncs )*} )*]
+            buf [$( #[$bmeta] )* => $bitem: STRUCT [$( $qvar:$qtyp ),*] ]
+            queue [$( $tail )*]);
+    };
+    // Add struct enum-variant, with excess comma - e.g. { descr: &'static str, }
+    (SORT [$( $def:tt )*]
+        items [$($( #[$imeta:meta] )*
+                  => $iitem:ident: $imode:tt [$( $ivar:ident: $ityp:ty ),*]
+                                {$( $ifuncs:tt )*} )* ]
+        buf [$( #[$bmeta:meta] )* => $bitem:ident: UNIT [ ] ]
+        queue [{$( $qvar:ident: $qtyp:ty ),+ ,} $( $tail:tt )*]
     ) => {
         quick_error!(SORT [$( $def )*]
             items [$( $(#[$imeta])* => $iitem: $imode [$( $ivar:$ityp ),*] {$( $ifuncs )*} )*]
@@ -730,7 +743,7 @@ mod test {
 
     quick_error! {
         #[derive(Debug, PartialEq)]
-        pub enum Wrapper {
+        pub enum TupleWrapper {
             /// ParseFloat Error
             ParseFloatError(err: ParseFloatError) {
                 from()
@@ -743,18 +756,11 @@ mod test {
                 display("Error: {}", descr)
             }
             /// FromUtf8 Error
-            TupleFromUtf8Error(err: Utf8Error, source: Vec<u8>) {
+            FromUtf8Error(err: Utf8Error, source: Vec<u8>) {
                 cause(err)
                 display(me) -> ("{desc} at index {pos}: {err}", desc=me.description(), pos=err.valid_up_to(), err=err)
                 description("utf8 error")
                 from(err: FromUtf8Error) -> (err.utf8_error().clone(), err.into_bytes())
-            }
-            // Utf8 Error
-            StructUtf8Error{ err: Utf8Error, hint: Option<&'static str> } {
-                cause(err)
-                display(me) -> ("{desc} at index {pos}: {err}", desc=me.description(), pos=err.valid_up_to(), err=err)
-                description("utf8 error")
-                from(err: Utf8Error) -> { err: err, hint: None }
             }
             Discard {
                 from(&'static str)
@@ -766,9 +772,9 @@ mod test {
     }
 
     #[test]
-    fn wrapper_err() {
+    fn tuple_wrapper_err() {
         let cause = "one and a half times pi".parse::<f32>().unwrap_err();
-        let err = Wrapper::ParseFloatError(cause.clone());
+        let err = TupleWrapper::ParseFloatError(cause.clone());
         assert_eq!(format!("{}", err), format!("parse float error: {}", cause));
         assert_eq!(format!("{:?}", err), format!("ParseFloatError({:?})", cause));
         assert_eq!(err.description(), cause.description());
@@ -776,9 +782,9 @@ mod test {
     }
 
     #[test]
-    fn wrapper_trait_str() {
+    fn tuple_wrapper_trait_str() {
         let desc = "hello";
-        let err: &Error = &Wrapper::Other(desc);
+        let err: &Error = &TupleWrapper::Other(desc);
         assert_eq!(format!("{}", err), format!("Error: {}", desc));
         assert_eq!(format!("{:?}", err), format!("Other({:?})", desc));
         assert_eq!(err.description(), desc);
@@ -786,56 +792,36 @@ mod test {
     }
 
     #[test]
-    fn wrapper_trait_two_fields() {
+    fn tuple_wrapper_trait_two_fields() {
         let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
         let cause = String::from_utf8(invalid_utf8.clone()).unwrap_err().utf8_error();
-        let err: &Error = &Wrapper::TupleFromUtf8Error(cause.clone(), invalid_utf8.clone());
+        let err: &Error = &TupleWrapper::FromUtf8Error(cause.clone(), invalid_utf8.clone());
         assert_eq!(format!("{}", err), format!("{desc} at index {pos}: {cause}", desc=err.description(), pos=cause.valid_up_to(), cause=cause));
-        assert_eq!(format!("{:?}", err), format!("TupleFromUtf8Error({:?}, {:?})", cause, invalid_utf8));
+        assert_eq!(format!("{:?}", err), format!("FromUtf8Error({:?}, {:?})", cause, invalid_utf8));
         assert_eq!(err.description(), "utf8 error");
         assert_eq!(format!("{:?}", err.cause().unwrap()), format!("{:?}", cause));
     }
 
     #[test]
-    fn wrapper_struct() {
-        let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
-        let cause = String::from_utf8(invalid_utf8.clone()).unwrap_err().utf8_error();
-        let err: &Error = &Wrapper::StructUtf8Error{ err: cause.clone(), hint: Some("nonsense") };
-        assert_eq!(format!("{}", err), format!("{desc} at index {pos}: {cause}", desc=err.description(), pos=cause.valid_up_to(), cause=cause));
-        assert_eq!(format!("{:?}", err), format!("StructUtf8Error {{ err: {:?}, hint: {:?} }}", cause, Some("nonsense")));
-        assert_eq!(err.description(), "utf8 error");
-        assert_eq!(format!("{:?}", err.cause().unwrap()), format!("{:?}", cause));
-    }
-
-    #[test]
-    fn wrapper_from() {
+    fn tuple_wrapper_from() {
         let cause = "one and a half times pi".parse::<f32>().unwrap_err();
-        let err = Wrapper::ParseFloatError(cause.clone());
-        let err_from: Wrapper = From::from(cause);
+        let err = TupleWrapper::ParseFloatError(cause.clone());
+        let err_from: TupleWrapper = From::from(cause);
         assert_eq!(err_from, err);
     }
 
     #[test]
-    fn wrapper_custom_from() {
+    fn tuple_wrapper_custom_from() {
         let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
         let cause = String::from_utf8(invalid_utf8.clone()).unwrap_err();
-        let err = Wrapper::TupleFromUtf8Error(cause.utf8_error().clone(), invalid_utf8);
-        let err_from: Wrapper = From::from(cause);
+        let err = TupleWrapper::FromUtf8Error(cause.utf8_error().clone(), invalid_utf8);
+        let err_from: TupleWrapper = From::from(cause);
         assert_eq!(err_from, err);
     }
 
     #[test]
-    fn wrapper_struct_from() {
-        let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
-        let cause = String::from_utf8(invalid_utf8.clone()).unwrap_err().utf8_error();
-        let err = Wrapper::StructUtf8Error{ err: cause.clone(), hint: None };
-        let err_from: Wrapper = From::from(cause);
-        assert_eq!(err_from, err);
-    }
-
-    #[test]
-    fn wrapper_discard() {
-        let err: Wrapper = From::from("hello");
+    fn tuple_wrapper_discard() {
+        let err: TupleWrapper = From::from("hello");
         assert_eq!(format!("{}", err), format!("Discard"));
         assert_eq!(format!("{:?}", err), format!("Discard"));
         assert_eq!(err.description(), "Discard");
@@ -843,11 +829,59 @@ mod test {
     }
 
     #[test]
-    fn wrapper_singleton() {
-        let err: Wrapper = Wrapper::Singleton;
+    fn tuple_wrapper_singleton() {
+        let err: TupleWrapper = TupleWrapper::Singleton;
         assert_eq!(format!("{}", err), format!("Just a string"));
         assert_eq!(format!("{:?}", err), format!("Singleton"));
         assert_eq!(err.description(), "Singleton");
+        assert!(err.cause().is_none());
+    }
+
+    quick_error! {
+        #[derive(Debug, PartialEq)]
+        pub enum StructWrapper {
+            // Utf8 Error
+            Utf8Error{ err: Utf8Error, hint: Option<&'static str> } {
+                cause(err)
+                display(me) -> ("{desc} at index {pos}: {err}", desc=me.description(), pos=err.valid_up_to(), err=err)
+                description("utf8 error")
+                from(err: Utf8Error) -> { err: err, hint: None }
+            }
+            // Utf8 Error
+            ExcessComma { descr: &'static str, } {
+                description(descr)
+                display("Error: {}", descr)
+            }
+        }
+    }
+
+    #[test]
+    fn struct_wrapper_err() {
+        let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
+        let cause = String::from_utf8(invalid_utf8.clone()).unwrap_err().utf8_error();
+        let err: &Error = &StructWrapper::Utf8Error{ err: cause.clone(), hint: Some("nonsense") };
+        assert_eq!(format!("{}", err), format!("{desc} at index {pos}: {cause}", desc=err.description(), pos=cause.valid_up_to(), cause=cause));
+        assert_eq!(format!("{:?}", err), format!("Utf8Error {{ err: {:?}, hint: {:?} }}", cause, Some("nonsense")));
+        assert_eq!(err.description(), "utf8 error");
+        assert_eq!(format!("{:?}", err.cause().unwrap()), format!("{:?}", cause));
+    }
+
+    #[test]
+    fn struct_wrapper_struct_from() {
+        let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
+        let cause = String::from_utf8(invalid_utf8.clone()).unwrap_err().utf8_error();
+        let err = StructWrapper::Utf8Error{ err: cause.clone(), hint: None };
+        let err_from: StructWrapper = From::from(cause);
+        assert_eq!(err_from, err);
+    }
+
+    #[test]
+    fn struct_wrapper_excess_comma() {
+        let descr = "hello";
+        let err = StructWrapper::ExcessComma { descr: descr };
+        assert_eq!(format!("{}", err), format!("Error: {}", descr));
+        assert_eq!(format!("{:?}", err), format!("ExcessComma {{ descr: {:?} }}", descr));
+        assert_eq!(err.description(), descr);
         assert!(err.cause().is_none());
     }
 }
