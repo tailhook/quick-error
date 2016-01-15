@@ -223,7 +223,7 @@ macro_rules! quick_error {
     };
     // Queue is empty, can do the work
     (SORT [enum $name:ident $( #[$meta:meta] )*]
-        items [$($( #[$imeta:imeta] )*
+        items [$($( #[$imeta:meta] )*
                   => $iitem:ident: $imode:tt [$( $ivar:ident: $ityp:ty ),*]
                                 {$( $ifuncs:tt )*} )* ]
         buf [ ]
@@ -299,7 +299,7 @@ macro_rules! quick_error {
         quick_error!(SORT [$( $def )*]
             enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*
                      $(#[$bmeta])* => $bitem: $bmode $(( $($btyp),* ))*]
-            items [$($( #[$imeta:imeta] )*
+            items [$($( #[$imeta:meta] )*
                       => $iitem: $imode [$( $ivar:$ityp ),*] {$( $ifuncs )*} )*
                      $bitem: $bmode [$( $bvar:$btyp ),*] {} ]
             buf [ #[$qmeta] ]
@@ -656,14 +656,14 @@ macro_rules! quick_error {
         { }
     ) => {
     };
-    (ITEM_BODY $(#[$imeta:imeta])* $item:ident: UNIT
+    (ITEM_BODY $(#[$imeta:meta])* $item:ident: UNIT
     ) => { };
-    (ITEM_BODY $(#[$imeta:imeta])* $item:ident: TUPLE
+    (ITEM_BODY $(#[$imeta:meta])* $item:ident: TUPLE
         [$( $typ:ty ),*]
     ) => {
         ($( $typ ),*)
     };
-    (ITEM_BODY $(#[$imeta:imeta])* $item:ident: STRUCT
+    (ITEM_BODY $(#[$imeta:meta])* $item:ident: STRUCT
         [$( $var:ident: $typ:ty ),*]
     ) => {
         {$( $var:$typ ),*}
