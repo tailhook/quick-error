@@ -668,8 +668,11 @@ macro_rules! quick_error {
         { context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
             -> ($( $texpr:expr ),*) $( $tail:tt )*}
     ) => {
-        impl<'a> From<Context<$ctyp, $ftyp>> for $name {
-            fn from(Context($cvar, $fvar): Context<$ctyp, $ftyp>) -> $name {
+        impl<'a> From<$crate::Context<$ctyp, $ftyp>> for $name {
+            fn from(
+                $crate::Context($cvar, $fvar): $crate::Context<$ctyp, $ftyp>)
+                -> $name
+            {
                 $name::$item($( $texpr ),*)
             }
         }

@@ -6,7 +6,7 @@ use std::env;
 use std::num::ParseIntError;
 use std::path::{Path, PathBuf};
 
-use quick_error::{Context, ResultExt};
+use quick_error::ResultExt;
 
 quick_error! {
     #[derive(Debug)]
