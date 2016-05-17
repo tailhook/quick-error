@@ -516,6 +516,11 @@ macro_rules! quick_error {
                 $name $item: $imode [$( $var:$typ ),*]
                 {$( $funcs )*});
         )*
+        $(
+            quick_error!(FIND_CONTEXT_IMPL
+                $name $item: $imode [$( $var:$typ ),*]
+                {$( $funcs )*});
+        )*
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident: $imode:tt
         { display($self_:tt) -> ($( $exprs:tt )*) $( $tail:tt )*}
@@ -586,6 +591,7 @@ macro_rules! quick_error {
     ) => {
         None
     };
+    // ----------------------------- FROM IMPL --------------------------
     (FIND_FROM_IMPL $name:ident $item:ident: $imode:tt
         [$( $var:ident: $typ:ty ),*]
         { from() $( $tail:tt )*}
@@ -656,6 +662,53 @@ macro_rules! quick_error {
         { }
     ) => {
     };
+    // ----------------------------- CONTEXT IMPL --------------------------
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: TUPLE
+        [$( $var:ident: $typ:ty ),*]
+        { context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
+            -> ($( $texpr:expr ),*) $( $tail:tt )*}
+    ) => {
+        impl<'a> From<Context<$ctyp, $ftyp>> for $name {
+            fn from(Context($cvar, $fvar): Context<$ctyp, $ftyp>) -> $name {
+                $name::$item($( $texpr ),*)
+            }
+        }
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item: TUPLE [$( $var:$typ ),*]
+            { $($tail)* });
+    };
+    /*
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: STRUCT
+        [$( $var:ident: $typ:ty ),*]
+        { from($fvar:ident: $ftyp:ty) -> {$( $tvar:ident: $texpr:expr ),*} $( $tail:tt )*}
+    ) => {
+        impl From<$ftyp> for $name {
+            fn from($fvar: $ftyp) -> $name {
+                $name::$item {
+                    $( $tvar: $texpr ),*
+                }
+            }
+        }
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item: STRUCT [$( $var:$typ ),*]
+            { $($tail)* });
+    };
+    */
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: $imode:tt
+        [$( $var:ident: $typ:ty ),*]
+        { $t:tt $( $tail:tt )*}
+    ) => {
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item: $imode [$( $var:$typ ),*]
+            {$( $tail )*}
+        );
+    };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: $imode:tt
+        [$( $var:ident: $typ:ty ),*]
+        { }
+    ) => {
+    };
+    // ----------------------------- ITEM IMPL --------------------------
     (ITEM_BODY $(#[$imeta:meta])* $item:ident: UNIT
     ) => { };
     (ITEM_BODY $(#[$imeta:meta])* $item:ident: TUPLE
@@ -704,10 +757,32 @@ macro_rules! quick_error {
     => { quick_error!(ERROR_CHECK TUPLE $($tail)*); };
     (ERROR_CHECK STRUCT from($fvar:ident: $ftyp:ty) -> {$( $v:ident: $e:expr ),*} $( $tail:tt )*)
     => { quick_error!(ERROR_CHECK STRUCT $($tail)*); };
+
+    (ERROR_CHECK TUPLE context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
+        -> ($( $e:expr ),*) $( $tail:tt )*)
+    => { quick_error!(ERROR_CHECK TUPLE $($tail)*); };
+    (ERROR_CHECK STRUCT context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
+        -> {$( $v:ident: $e:expr ),*} $( $tail:tt )*)
+    => { quick_error!(ERROR_CHECK STRUCT $($tail)*); };
+
     (ERROR_CHECK $imode:tt ) => {};
     // Utility functions
     (IDENT $ident:ident) => { $ident }
 }
+
+
+pub struct Context<X, E>(pub X, pub E);
+
+pub trait ResultExt<T, E> {
+    fn context<X>(self, x: X) -> Result<T, Context<X, E>>;
+}
+
+impl<T, E> ResultExt<T, E> for Result<T, E> {
+    fn context<X>(self, x: X) -> Result<T, Context<X, E>> {
+        self.map_err(|e| Context(x, e))
+    }
+}
+
 
 
 #[cfg(test)]
