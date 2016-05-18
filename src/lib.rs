@@ -795,6 +795,8 @@ mod test {
     use std::string::FromUtf8Error;
     use std::error::Error;
 
+    use super::ResultExt;
+
     quick_error! {
         #[derive(Debug)]
         pub enum Bare {
@@ -961,5 +963,24 @@ mod test {
         assert_eq!(format!("{:?}", err), format!("ExcessComma {{ descr: {:?} }}", descr));
         assert_eq!(err.description(), descr);
         assert!(err.cause().is_none());
+    }
+
+    quick_error! {
+        #[derive(Debug)]
+        pub enum ContextErr {
+            Parse(src: String, err: ParseFloatError) {
+                context(s: &'a str, e: ParseFloatError) -> (s.to_string(), e)
+                display("Error parsing {:?}: {}", src, err)
+            }
+        }
+    }
+
+    #[test]
+    fn parse_float_error() {
+        fn parse_float(s: &str) -> Result<f32, ContextErr> {
+            Ok(try!(s.parse().context(s)))
+        }
+        assert_eq!(format!("{}", parse_float("12ab").unwrap_err()),
+            r#"Error parsing "12ab": invalid float literal"#);
     }
 }
