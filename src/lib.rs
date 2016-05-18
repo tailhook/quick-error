@@ -666,7 +666,7 @@ macro_rules! quick_error {
     (FIND_CONTEXT_IMPL $name:ident $item:ident: TUPLE
         [$( $var:ident: $typ:ty ),*]
         { context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
-            -> ($( $texpr:expr ),*) $( $tail:tt )*}
+            -> ($( $texpr:expr ),*) $( $tail:tt )* }
     ) => {
         impl<'a> From<$crate::Context<$ctyp, $ftyp>> for $name {
             fn from(
@@ -680,13 +680,16 @@ macro_rules! quick_error {
             $name $item: TUPLE [$( $var:$typ ),*]
             { $($tail)* });
     };
-    /*
     (FIND_CONTEXT_IMPL $name:ident $item:ident: STRUCT
         [$( $var:ident: $typ:ty ),*]
-        { from($fvar:ident: $ftyp:ty) -> {$( $tvar:ident: $texpr:expr ),*} $( $tail:tt )*}
+        { context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
+            -> {$( $tvar:ident: $texpr:expr ),*} $( $tail:tt )* }
     ) => {
-        impl From<$ftyp> for $name {
-            fn from($fvar: $ftyp) -> $name {
+        impl<'a> From<$crate::Context<$ctyp, $ftyp>> for $name {
+            fn from(
+                $crate::Context($cvar, $fvar): $crate::Context<$ctyp, $ftyp>)
+                -> $name
+            {
                 $name::$item {
                     $( $tvar: $texpr ),*
                 }
@@ -696,7 +699,6 @@ macro_rules! quick_error {
             $name $item: STRUCT [$( $var:$typ ),*]
             { $($tail)* });
     };
-    */
     (FIND_CONTEXT_IMPL $name:ident $item:ident: $imode:tt
         [$( $var:ident: $typ:ty ),*]
         { $t:tt $( $tail:tt )*}
@@ -790,7 +792,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 
 #[cfg(test)]
 mod test {
-    use std::num::ParseFloatError;
+    use std::num::{ParseFloatError, ParseIntError};
     use std::str::Utf8Error;
     use std::string::FromUtf8Error;
     use std::error::Error;
@@ -968,9 +970,14 @@ mod test {
     quick_error! {
         #[derive(Debug)]
         pub enum ContextErr {
-            Parse(src: String, err: ParseFloatError) {
+            Float(src: String, err: ParseFloatError) {
                 context(s: &'a str, e: ParseFloatError) -> (s.to_string(), e)
-                display("Error parsing {:?}: {}", src, err)
+                display("Float error {:?}: {}", src, err)
+            }
+            Int { src: String, err: ParseIntError } {
+                context(s: &'a str, e: ParseIntError)
+                    -> {src: s.to_string(), err: e}
+                display("Int error {:?}: {}", src, err)
             }
         }
     }
@@ -981,6 +988,15 @@ mod test {
             Ok(try!(s.parse().context(s)))
         }
         assert_eq!(format!("{}", parse_float("12ab").unwrap_err()),
-            r#"Error parsing "12ab": invalid float literal"#);
+            r#"Float error "12ab": invalid float literal"#);
+    }
+
+    #[test]
+    fn parse_int_error() {
+        fn parse_int(s: &str) -> Result<i32, ContextErr> {
+            Ok(try!(s.parse().context(s)))
+        }
+        assert_eq!(format!("{}", parse_int("12.5").unwrap_err()),
+            r#"Int error "12.5": invalid digit found in string"#);
     }
 }
