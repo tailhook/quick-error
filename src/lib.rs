@@ -665,6 +665,23 @@ macro_rules! quick_error {
     // ----------------------------- CONTEXT IMPL --------------------------
     (FIND_CONTEXT_IMPL $name:ident $item:ident: TUPLE
         [$( $var:ident: $typ:ty ),*]
+        { context($cvar:ident: AsRef<$ctyp:ty>, $fvar:ident: $ftyp:ty)
+            -> ($( $texpr:expr ),*) $( $tail:tt )* }
+    ) => {
+        impl<T: AsRef<$ctyp>> From<$crate::Context<T, $ftyp>> for $name {
+            fn from(
+                $crate::Context($cvar, $fvar): $crate::Context<T, $ftyp>)
+                -> $name
+            {
+                $name::$item($( $texpr ),*)
+            }
+        }
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item: TUPLE [$( $var:$typ ),*]
+            { $($tail)* });
+    };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: TUPLE
+        [$( $var:ident: $typ:ty ),*]
         { context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
             -> ($( $texpr:expr ),*) $( $tail:tt )* }
     ) => {
@@ -678,6 +695,25 @@ macro_rules! quick_error {
         }
         quick_error!(FIND_CONTEXT_IMPL
             $name $item: TUPLE [$( $var:$typ ),*]
+            { $($tail)* });
+    };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: STRUCT
+        [$( $var:ident: $typ:ty ),*]
+        { context($cvar:ident: AsRef<$ctyp:ty>, $fvar:ident: $ftyp:ty)
+            -> {$( $tvar:ident: $texpr:expr ),*} $( $tail:tt )* }
+    ) => {
+        impl<T: AsRef<$ctyp>> From<$crate::Context<T, $ftyp>> for $name {
+            fn from(
+                $crate::Context($cvar, $fvar): $crate::Context<$ctyp, $ftyp>)
+                -> $name
+            {
+                $name::$item {
+                    $( $tvar: $texpr ),*
+                }
+            }
+        }
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item: STRUCT [$( $var:$typ ),*]
             { $($tail)* });
     };
     (FIND_CONTEXT_IMPL $name:ident $item:ident: STRUCT
@@ -797,6 +833,7 @@ mod test {
     use std::str::Utf8Error;
     use std::string::FromUtf8Error;
     use std::error::Error;
+    use std::path::{Path, PathBuf};
 
     use super::ResultExt;
 
@@ -980,6 +1017,16 @@ mod test {
                     -> {src: s.to_string(), err: e}
                 display("Int error {:?}: {}", src, err)
             }
+            Utf8(path: PathBuf, err: Utf8Error) {
+                context(p: AsRef<Path>, e: Utf8Error)
+                    -> (p.as_ref().to_path_buf(), e)
+                display("Path error at {:?}: {}", path, err)
+            }
+            Utf8Str(s: String, err: ::std::io::Error) {
+                context(s: AsRef<str>, e: ::std::io::Error)
+                    -> (s.as_ref().to_string(), e)
+                display("Str error {:?}: {}", s, err)
+            }
         }
     }
 
@@ -1009,5 +1056,22 @@ mod test {
         assert_eq!(parse_int("12"), 12);
         assert_eq!(format!("{:?}", "x".parse::<i32>().context("x")),
             r#"Err(Context("x", ParseIntError { kind: InvalidDigit }))"#);
+    }
+
+    #[test]
+    fn path_context() {
+        fn parse_utf<P: AsRef<Path>>(s: &[u8], p: P)
+            -> Result<(), ContextErr>
+        {
+            try!(::std::str::from_utf8(s).context(p));
+            Ok(())
+        }
+        assert_eq!(format!("{}", parse_utf(b"a\x80\x80", "/etc").unwrap_err()),
+            "Path error at \"/etc\": invalid utf-8: \
+               invalid byte near index 1");
+        assert_eq!(format!("{}", parse_utf(b"\x80\x80",
+                                 PathBuf::from("/tmp")).unwrap_err()),
+            "Path error at \"/tmp\": invalid utf-8: \
+               invalid byte near index 0");
     }
 }
