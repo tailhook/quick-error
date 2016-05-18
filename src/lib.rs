@@ -776,6 +776,7 @@ macro_rules! quick_error {
 }
 
 
+#[derive(Debug)]
 pub struct Context<X, E>(pub X, pub E);
 
 pub trait ResultExt<T, E> {
@@ -998,5 +999,15 @@ mod test {
         }
         assert_eq!(format!("{}", parse_int("12.5").unwrap_err()),
             r#"Int error "12.5": invalid digit found in string"#);
+    }
+
+    #[test]
+    fn debug_context() {
+        fn parse_int(s: &str) -> i32 {
+            s.parse().context(s).unwrap()
+        }
+        assert_eq!(parse_int("12"), 12);
+        assert_eq!(format!("{:?}", "x".parse::<i32>().context("x")),
+            r#"Err(Context("x", ParseIntError { kind: InvalidDigit }))"#);
     }
 }
