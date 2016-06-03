@@ -197,10 +197,63 @@
 //! }
 //! ```
 //!
-//! All forms of `from`, `display`, `description`, `cause` clauses can be
-//! combined and put in arbitrary order. Only `from` may be used multiple times
-//! in single variant of enumeration. Docstrings are also okay.
-//! Empty braces can be omitted as of quick_error 0.1.3.
+//! Since quick-error 1.1 we also have a `context` declaration, which is
+//! similar to (the longest form of) `from`, but allows adding some context to
+//! the error. We need a longer example to demonstrate this:
+//!
+//! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # use std::io;
+//! # use std::fs::File;
+//! # use std::path::{Path, PathBuf};
+//! #
+//! use quick_error::ResultExt;
+//!
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum Error {
+//!         File(filename: PathBuf, err: io::Error) {
+//!             context(path: &'a Path, err: io::Error)
+//!                 -> (path.to_path_buf(), err)
+//!         }
+//!     }
+//! }
+//!
+//! fn openfile(path: &Path) -> Result<(), Error> {
+//!     try!(File::open(path).context(path));
+//!
+//!     // If we didn't have context, the line above would be written as;
+//!     //
+//!     // try!(File::open(path)
+//!     //     .map_err(|err| Error::File(path.to_path_buf(), err)));
+//!
+//!     Ok(())
+//! }
+//!
+//! # fn main() {
+//! #     openfile(Path::new("/etc/somefile")).ok();
+//! # }
+//! ```
+//!
+//! Each `context(a: A, b: B)` clause implements
+//! `From<Context<A, B>> for Error`. Which means multiple `context` clauses
+//! are a subject to the normal coherence rules. Unfortunately, we can't
+//! provide full support of generics for the context, but you may either use a
+//! lifetime `'a` for references or `AsRef<Type>` (the latter means `A:
+//! AsRef<Type>`, and `Type` must be concrete). It's also occasionally useful
+//! to use a tuple as a type of the first argument.
+//!
+//! You also need to `use quick_error::ResultExt` extension trait to get
+//! working `.context()` method.
+//!
+//! More info on context in [this article](http://bit.ly/1PsuxDt).
+//!
+//! All forms of `from`, `display`, `description`, `cause`, and `context`
+//! clauses can be combined and put in arbitrary order. Only `from` and
+//! `context` can be used multiple times in single variant of enumeration.
+//! Docstrings are also okay.  Empty braces can be omitted as of quick_error
+//! 0.1.3.
+//!
 //!
 
 
