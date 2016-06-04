@@ -197,10 +197,63 @@
 //! }
 //! ```
 //!
-//! All forms of `from`, `display`, `description`, `cause` clauses can be
-//! combined and put in arbitrary order. Only `from` may be used multiple times
-//! in single variant of enumeration. Docstrings are also okay.
-//! Empty braces can be omitted as of quick_error 0.1.3.
+//! Since quick-error 1.1 we also have a `context` declaration, which is
+//! similar to (the longest form of) `from`, but allows adding some context to
+//! the error. We need a longer example to demonstrate this:
+//!
+//! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # use std::io;
+//! # use std::fs::File;
+//! # use std::path::{Path, PathBuf};
+//! #
+//! use quick_error::ResultExt;
+//!
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum Error {
+//!         File(filename: PathBuf, err: io::Error) {
+//!             context(path: &'a Path, err: io::Error)
+//!                 -> (path.to_path_buf(), err)
+//!         }
+//!     }
+//! }
+//!
+//! fn openfile(path: &Path) -> Result<(), Error> {
+//!     try!(File::open(path).context(path));
+//!
+//!     // If we didn't have context, the line above would be written as;
+//!     //
+//!     // try!(File::open(path)
+//!     //     .map_err(|err| Error::File(path.to_path_buf(), err)));
+//!
+//!     Ok(())
+//! }
+//!
+//! # fn main() {
+//! #     openfile(Path::new("/etc/somefile")).ok();
+//! # }
+//! ```
+//!
+//! Each `context(a: A, b: B)` clause implements
+//! `From<Context<A, B>> for Error`. Which means multiple `context` clauses
+//! are a subject to the normal coherence rules. Unfortunately, we can't
+//! provide full support of generics for the context, but you may either use a
+//! lifetime `'a` for references or `AsRef<Type>` (the latter means `A:
+//! AsRef<Type>`, and `Type` must be concrete). It's also occasionally useful
+//! to use a tuple as a type of the first argument.
+//!
+//! You also need to `use quick_error::ResultExt` extension trait to get
+//! working `.context()` method.
+//!
+//! More info on context in [this article](http://bit.ly/1PsuxDt).
+//!
+//! All forms of `from`, `display`, `description`, `cause`, and `context`
+//! clauses can be combined and put in arbitrary order. Only `from` and
+//! `context` can be used multiple times in single variant of enumeration.
+//! Docstrings are also okay.  Empty braces can be omitted as of quick_error
+//! 0.1.3.
+//!
 //!
 
 
@@ -516,6 +569,11 @@ macro_rules! quick_error {
                 $name $item: $imode [$( $var:$typ ),*]
                 {$( $funcs )*});
         )*
+        $(
+            quick_error!(FIND_CONTEXT_IMPL
+                $name $item: $imode [$( $var:$typ ),*]
+                {$( $funcs )*});
+        )*
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident: $imode:tt
         { display($self_:tt) -> ($( $exprs:tt )*) $( $tail:tt )*}
@@ -586,6 +644,7 @@ macro_rules! quick_error {
     ) => {
         None
     };
+    // ----------------------------- FROM IMPL --------------------------
     (FIND_FROM_IMPL $name:ident $item:ident: $imode:tt
         [$( $var:ident: $typ:ty ),*]
         { from() $( $tail:tt )*}
@@ -656,6 +715,94 @@ macro_rules! quick_error {
         { }
     ) => {
     };
+    // ----------------------------- CONTEXT IMPL --------------------------
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: TUPLE
+        [$( $var:ident: $typ:ty ),*]
+        { context($cvar:ident: AsRef<$ctyp:ty>, $fvar:ident: $ftyp:ty)
+            -> ($( $texpr:expr ),*) $( $tail:tt )* }
+    ) => {
+        impl<T: AsRef<$ctyp>> From<$crate::Context<T, $ftyp>> for $name {
+            fn from(
+                $crate::Context($cvar, $fvar): $crate::Context<T, $ftyp>)
+                -> $name
+            {
+                $name::$item($( $texpr ),*)
+            }
+        }
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item: TUPLE [$( $var:$typ ),*]
+            { $($tail)* });
+    };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: TUPLE
+        [$( $var:ident: $typ:ty ),*]
+        { context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
+            -> ($( $texpr:expr ),*) $( $tail:tt )* }
+    ) => {
+        impl<'a> From<$crate::Context<$ctyp, $ftyp>> for $name {
+            fn from(
+                $crate::Context($cvar, $fvar): $crate::Context<$ctyp, $ftyp>)
+                -> $name
+            {
+                $name::$item($( $texpr ),*)
+            }
+        }
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item: TUPLE [$( $var:$typ ),*]
+            { $($tail)* });
+    };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: STRUCT
+        [$( $var:ident: $typ:ty ),*]
+        { context($cvar:ident: AsRef<$ctyp:ty>, $fvar:ident: $ftyp:ty)
+            -> {$( $tvar:ident: $texpr:expr ),*} $( $tail:tt )* }
+    ) => {
+        impl<T: AsRef<$ctyp>> From<$crate::Context<T, $ftyp>> for $name {
+            fn from(
+                $crate::Context($cvar, $fvar): $crate::Context<$ctyp, $ftyp>)
+                -> $name
+            {
+                $name::$item {
+                    $( $tvar: $texpr ),*
+                }
+            }
+        }
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item: STRUCT [$( $var:$typ ),*]
+            { $($tail)* });
+    };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: STRUCT
+        [$( $var:ident: $typ:ty ),*]
+        { context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
+            -> {$( $tvar:ident: $texpr:expr ),*} $( $tail:tt )* }
+    ) => {
+        impl<'a> From<$crate::Context<$ctyp, $ftyp>> for $name {
+            fn from(
+                $crate::Context($cvar, $fvar): $crate::Context<$ctyp, $ftyp>)
+                -> $name
+            {
+                $name::$item {
+                    $( $tvar: $texpr ),*
+                }
+            }
+        }
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item: STRUCT [$( $var:$typ ),*]
+            { $($tail)* });
+    };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: $imode:tt
+        [$( $var:ident: $typ:ty ),*]
+        { $t:tt $( $tail:tt )*}
+    ) => {
+        quick_error!(FIND_CONTEXT_IMPL
+            $name $item: $imode [$( $var:$typ ),*]
+            {$( $tail )*}
+        );
+    };
+    (FIND_CONTEXT_IMPL $name:ident $item:ident: $imode:tt
+        [$( $var:ident: $typ:ty ),*]
+        { }
+    ) => {
+    };
+    // ----------------------------- ITEM IMPL --------------------------
     (ITEM_BODY $(#[$imeta:meta])* $item:ident: UNIT
     ) => { };
     (ITEM_BODY $(#[$imeta:meta])* $item:ident: TUPLE
@@ -704,18 +851,44 @@ macro_rules! quick_error {
     => { quick_error!(ERROR_CHECK TUPLE $($tail)*); };
     (ERROR_CHECK STRUCT from($fvar:ident: $ftyp:ty) -> {$( $v:ident: $e:expr ),*} $( $tail:tt )*)
     => { quick_error!(ERROR_CHECK STRUCT $($tail)*); };
+
+    (ERROR_CHECK TUPLE context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
+        -> ($( $e:expr ),*) $( $tail:tt )*)
+    => { quick_error!(ERROR_CHECK TUPLE $($tail)*); };
+    (ERROR_CHECK STRUCT context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
+        -> {$( $v:ident: $e:expr ),*} $( $tail:tt )*)
+    => { quick_error!(ERROR_CHECK STRUCT $($tail)*); };
+
     (ERROR_CHECK $imode:tt ) => {};
     // Utility functions
     (IDENT $ident:ident) => { $ident }
 }
 
 
+#[derive(Debug)]
+pub struct Context<X, E>(pub X, pub E);
+
+pub trait ResultExt<T, E> {
+    fn context<X>(self, x: X) -> Result<T, Context<X, E>>;
+}
+
+impl<T, E> ResultExt<T, E> for Result<T, E> {
+    fn context<X>(self, x: X) -> Result<T, Context<X, E>> {
+        self.map_err(|e| Context(x, e))
+    }
+}
+
+
+
 #[cfg(test)]
 mod test {
-    use std::num::ParseFloatError;
+    use std::num::{ParseFloatError, ParseIntError};
     use std::str::Utf8Error;
     use std::string::FromUtf8Error;
     use std::error::Error;
+    use std::path::{Path, PathBuf};
+
+    use super::ResultExt;
 
     quick_error! {
         #[derive(Debug)]
@@ -883,5 +1056,75 @@ mod test {
         assert_eq!(format!("{:?}", err), format!("ExcessComma {{ descr: {:?} }}", descr));
         assert_eq!(err.description(), descr);
         assert!(err.cause().is_none());
+    }
+
+    quick_error! {
+        #[derive(Debug)]
+        pub enum ContextErr {
+            Float(src: String, err: ParseFloatError) {
+                context(s: &'a str, e: ParseFloatError) -> (s.to_string(), e)
+                display("Float error {:?}: {}", src, err)
+            }
+            Int { src: String, err: ParseIntError } {
+                context(s: &'a str, e: ParseIntError)
+                    -> {src: s.to_string(), err: e}
+                display("Int error {:?}: {}", src, err)
+            }
+            Utf8(path: PathBuf, err: Utf8Error) {
+                context(p: AsRef<Path>, e: Utf8Error)
+                    -> (p.as_ref().to_path_buf(), e)
+                display("Path error at {:?}: {}", path, err)
+            }
+            Utf8Str(s: String, err: ::std::io::Error) {
+                context(s: AsRef<str>, e: ::std::io::Error)
+                    -> (s.as_ref().to_string(), e)
+                display("Str error {:?}: {}", s, err)
+            }
+        }
+    }
+
+    #[test]
+    fn parse_float_error() {
+        fn parse_float(s: &str) -> Result<f32, ContextErr> {
+            Ok(try!(s.parse().context(s)))
+        }
+        assert_eq!(format!("{}", parse_float("12ab").unwrap_err()),
+            r#"Float error "12ab": invalid float literal"#);
+    }
+
+    #[test]
+    fn parse_int_error() {
+        fn parse_int(s: &str) -> Result<i32, ContextErr> {
+            Ok(try!(s.parse().context(s)))
+        }
+        assert_eq!(format!("{}", parse_int("12.5").unwrap_err()),
+            r#"Int error "12.5": invalid digit found in string"#);
+    }
+
+    #[test]
+    fn debug_context() {
+        fn parse_int(s: &str) -> i32 {
+            s.parse().context(s).unwrap()
+        }
+        assert_eq!(parse_int("12"), 12);
+        assert_eq!(format!("{:?}", "x".parse::<i32>().context("x")),
+            r#"Err(Context("x", ParseIntError { kind: InvalidDigit }))"#);
+    }
+
+    #[test]
+    fn path_context() {
+        fn parse_utf<P: AsRef<Path>>(s: &[u8], p: P)
+            -> Result<(), ContextErr>
+        {
+            try!(::std::str::from_utf8(s).context(p));
+            Ok(())
+        }
+        assert_eq!(format!("{}", parse_utf(b"a\x80\x80", "/etc").unwrap_err()),
+            "Path error at \"/etc\": invalid utf-8: \
+               invalid byte near index 1");
+        assert_eq!(format!("{}", parse_utf(b"\x80\x80",
+                                 PathBuf::from("/tmp")).unwrap_err()),
+            "Path error at \"/tmp\": invalid utf-8: \
+               invalid byte near index 0");
     }
 }
