@@ -10,3 +10,6 @@ authors = ["Paul Colomiets <paul@colomiets.name>", "Colin Kiegel <kiegel@gmx.de>
 homepage = "http://github.com/tailhook/quick-error"
 repository = "http://github.com/tailhook/quick-error"
 documentation = "http://tailhook.github.io/quick-error/"
+
+[dev-dependencies]
+backtrace = "0.2"
