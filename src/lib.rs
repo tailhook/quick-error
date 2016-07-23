@@ -36,7 +36,7 @@
 //! }
 //! ```
 //!
-//! Note unlike in normal Enum decarations you declare names of fields (which
+//! Note unlike in normal Enum declarations you declare names of fields (which
 //! are omitted from type). How they can be used is outlined below.
 //!
 //! Now you might have noticed trailing braces `{}`. They are used to define
