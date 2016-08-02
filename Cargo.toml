@@ -3,7 +3,7 @@ name = "quick-error"
 description = """
     A macro which makes error types pleasant to write.
 """
-license = "MIT OR Apache-2.0"
+license = "MIT/Apache-2.0"
 version = "1.1.0"
 keywords = ["macro", "error", "type", "enum"]
 authors = ["Paul Colomiets <paul@colomiets.name>", "Colin Kiegel <kiegel@gmx.de>"]
