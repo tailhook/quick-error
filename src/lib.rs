@@ -86,6 +86,10 @@
 //!         Utf8(err: std::str::Utf8Error) {
 //!             description("utf8 error")
 //!         }
+//!         Other(err: Box<std::error::Error>) {
+//!             cause(&**err)
+//!             description(err.description())
+//!         }
 //!     }
 //! }
 //! ```
