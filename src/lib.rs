@@ -292,7 +292,7 @@ macro_rules! quick_error {
                       => $iitem: $imode [$( $ivar: $ityp ),*] )*]
         );
         quick_error!(IMPLEMENTATIONS $name {$(
-           $iitem: $imode [$( $ivar: $ityp ),*] {$( $ifuncs )*}
+           $iitem: $imode [$(#[$imeta])*] [$( $ivar: $ityp ),*] {$( $ifuncs )*}
            )*});
         $(
             quick_error!(ERROR_CHECK $imode $($ifuncs)*);
@@ -311,7 +311,7 @@ macro_rules! quick_error {
                       => $iitem: $imode [$( $ivar: $ityp ),*] )*]
         );
         quick_error!(IMPLEMENTATIONS $name {$(
-           $iitem: $imode [$( $ivar: $ityp ),*] {$( $ifuncs )*}
+           $iitem: $imode [$(#[$imeta])*] [$( $ivar: $ityp ),*] {$( $ifuncs )*}
            )*});
         $(
             quick_error!(ERROR_CHECK $imode $($ifuncs)*);
@@ -516,7 +516,7 @@ macro_rules! quick_error {
     };
     (IMPLEMENTATIONS
         $name:ident {$(
-            $item:ident: $imode:tt [$( $var:ident: $typ:ty ),*] {$( $funcs:tt )*}
+            $item:ident: $imode:tt [$(#[$imeta:meta])*] [$( $var:ident: $typ:ty ),*] {$( $funcs:tt )*}
         )*}
     ) => {
         #[allow(unused)]
@@ -526,6 +526,7 @@ macro_rules! quick_error {
             {
                 match *self {
                     $(
+                        $(#[$imeta])*
                         quick_error!(ITEM_PATTERN
                             $name $item: $imode [$( ref $var ),*]
                         ) => {
@@ -544,6 +545,7 @@ macro_rules! quick_error {
             fn description(&self) -> &str {
                 match *self {
                     $(
+                        $(#[$imeta])*
                         quick_error!(ITEM_PATTERN
                             $name $item: $imode [$( ref $var ),*]
                         ) => {
@@ -557,6 +559,7 @@ macro_rules! quick_error {
             fn cause(&self) -> Option<&::std::error::Error> {
                 match *self {
                     $(
+                        $(#[$imeta])*
                         quick_error!(ITEM_PATTERN
                             $name $item: $imode [$( ref $var ),*]
                         ) => {
@@ -1130,5 +1133,17 @@ mod test {
                                  PathBuf::from("/tmp")).unwrap_err()),
             "Path error at \"/tmp\": invalid utf-8: \
                invalid byte near index 0");
+    }
+
+    #[test]
+    fn conditional_compilation() {
+        quick_error! {
+            #[allow(dead_code)]
+            #[derive(Debug)]
+            pub enum Test {
+                #[cfg(feature = "foo")]
+                Variant
+            }
+        }
     }
 }
