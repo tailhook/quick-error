@@ -1123,12 +1123,12 @@ mod test {
             try!(::std::str::from_utf8(s).context(p));
             Ok(())
         }
-        assert_eq!(format!("{}", parse_utf(b"a\x80\x80", "/etc").unwrap_err()),
-            "Path error at \"/etc\": invalid utf-8: \
-               invalid byte near index 1");
-        assert_eq!(format!("{}", parse_utf(b"\x80\x80",
-                                 PathBuf::from("/tmp")).unwrap_err()),
-            "Path error at \"/tmp\": invalid utf-8: \
-               invalid byte near index 0");
+        let etext = parse_utf(b"a\x80\x80", "/etc").unwrap_err().to_string();
+        assert!(etext.starts_with(
+            "Path error at \"/etc\": invalid utf-8: invalid "));
+        let etext = parse_utf(b"\x80\x80", PathBuf::from("/tmp")).unwrap_err()
+            .to_string();
+        assert!(etext.starts_with(
+            "Path error at \"/tmp\": invalid utf-8: invalid "));
     }
 }
