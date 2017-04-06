@@ -1,0 +1,27 @@
+commands:
+
+  cargo: !Command
+    description: Run any cargo command
+    container: ubuntu
+    run: [cargo]
+
+  test: !Command
+    description: Run unit tests
+    container: ubuntu
+    run: [cargo, test]
+
+containers:
+
+  ubuntu:
+    setup:
+    - !Ubuntu xenial
+    - !Install [ca-certificates, build-essential]
+
+    - !TarInstall
+      url: "https://static.rust-lang.org/dist/rust-1.16.0-x86_64-unknown-linux-gnu.tar.gz"
+      script: "./install.sh --prefix=/usr \
+                --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
+
+    environ:
+      HOME: /work/target
+      USER: pc
