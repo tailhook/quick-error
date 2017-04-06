@@ -264,6 +264,7 @@
 /// Main macro that does all the work
 #[macro_export]
 macro_rules! quick_error {
+
     (   $(#[$meta:meta])*
         pub enum $name:ident { $($chunks:tt)* }
     ) => {
@@ -278,6 +279,74 @@ macro_rules! quick_error {
             items [] buf []
             queue [ $($chunks)* ]);
     };
+
+    (   $(#[$meta:meta])*
+        pub enum $name:ident wraps $enum_name:ident { $($chunks:tt)* }
+    ) => {
+        quick_error!(WRAPPER $enum_name [ pub struct ] $name $(#[$meta])*);
+        quick_error!(SORT [enum $enum_name $(#[$meta])* ]
+            items [] buf []
+            queue [ $($chunks)* ]);
+    };
+
+    (   $(#[$meta:meta])*
+        pub enum $name:ident wraps pub $enum_name:ident { $($chunks:tt)* }
+    ) => {
+        quick_error!(WRAPPER $enum_name [ pub struct ] $name $(#[$meta])*);
+        quick_error!(SORT [pub enum $enum_name $(#[$meta])* ]
+            items [] buf []
+            queue [ $($chunks)* ]);
+    };
+    (   $(#[$meta:meta])*
+        enum $name:ident wraps $enum_name:ident { $($chunks:tt)* }
+    ) => {
+        quick_error!(WRAPPER $enum_name [ struct ] $name $(#[$meta])*);
+        quick_error!(SORT [enum $enum_name $(#[$meta])* ]
+            items [] buf []
+            queue [ $($chunks)* ]);
+    };
+
+    (   $(#[$meta:meta])*
+        enum $name:ident wraps pub $enum_name:ident { $($chunks:tt)* }
+    ) => {
+        quick_error!(WRAPPER $enum_name [ struct ] $name $(#[$meta])*);
+        quick_error!(SORT [pub enum $enum_name $(#[$meta])* ]
+            items [] buf []
+            queue [ $($chunks)* ]);
+    };
+
+
+    (
+        WRAPPER $internal:ident [ $($strdef:tt)* ] $strname:ident
+        $(#[$meta:meta])*
+    ) => {
+        $(#[$meta])*
+        $($strdef)* $strname ( $internal );
+
+        impl ::std::fmt::Display for $strname {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter)
+                -> ::std::fmt::Result
+            {
+                ::std::fmt::Display::fmt(&self.0, f)
+            }
+        }
+
+        impl From<$internal> for $strname {
+            fn from(err: $internal) -> Self {
+                $strname(err)
+            }
+        }
+
+        impl ::std::error::Error for $strname {
+            fn description(&self) -> &str {
+                self.0.description()
+            }
+            fn cause(&self) -> Option<&::std::error::Error> {
+                self.0.cause()
+            }
+        }
+    };
+
     // Queue is empty, can do the work
     (SORT [enum $name:ident $( #[$meta:meta] )*]
         items [$($( #[$imeta:meta] )*
@@ -916,6 +985,30 @@ mod test {
         assert_eq!(format!("{:?}", err), "Two".to_string());
         assert_eq!(err.description(), "Two".to_string());
         assert!(err.cause().is_none());
+    }
+
+    quick_error! {
+        #[derive(Debug)]
+        pub enum Wrapper wraps Wrapped {
+            One
+            Two(s: String) {
+                display("two: {}", s)
+                from()
+            }
+        }
+    }
+
+    #[test]
+    fn wrapper() {
+        assert_eq!(format!("{}", Wrapper::from(Wrapped::One)),
+            "One".to_string());
+        assert_eq!(format!("{}",
+            Wrapper::from(Wrapped::from(String::from("hello")))),
+            "two: hello".to_string());
+        assert_eq!(format!("{:?}", Wrapper::from(Wrapped::One)),
+            "Wrapper(One)".to_string());
+        assert_eq!(Wrapper::from(Wrapped::One).description(),
+            "One".to_string());
     }
 
     quick_error! {
