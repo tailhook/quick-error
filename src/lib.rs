@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! A macro which makes errors easy to write
 //!
 //! Minimum type is like this:
@@ -981,10 +982,20 @@ macro_rules! quick_error {
 }
 
 
+/// Generic context type
+///
+/// Used mostly as a transport for `ResultExt::context` method
 #[derive(Debug)]
 pub struct Context<X, E>(pub X, pub E);
 
+/// Result extension trait adding a `context` method
 pub trait ResultExt<T, E> {
+    /// The method is use to add context information to current operation
+    ///
+    /// The context data is then used in error constructor to store additional
+    /// information within error. For example, you may add a filename as a
+    /// context for file operation. See crate documentation for the actual
+    /// example.
     fn context<X>(self, x: X) -> Result<T, Context<X, E>>;
 }
 
