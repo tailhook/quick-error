@@ -19,6 +19,8 @@
 //! comments ``/// something`` (as well as other meta attrbiutes) on variants
 //! are allowed.
 //!
+//! # Allowed Syntax
+//!
 //! You may add arbitrary parameters to any struct variant:
 //!
 //! ```rust
@@ -200,6 +202,7 @@
 //!     }
 //! }
 //! ```
+//! # Context
 //!
 //! Since quick-error 1.1 we also have a `context` declaration, which is
 //! similar to (the longest form of) `from`, but allows adding some context to
@@ -257,6 +260,43 @@
 //! `context` can be used multiple times in single variant of enumeration.
 //! Docstrings are also okay.  Empty braces can be omitted as of quick_error
 //! 0.1.3.
+//!
+//! # Private Enums
+//!
+//! Since quick-error 1.2.0 we  have a way to make a private enum that is
+//! wrapped by public structure:
+//!
+//! ```rust
+//! #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//!
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum PubError wraps ErrorEnum {
+//!         Variant1 {}
+//!     }
+//! }
+//! ```
+//!
+//! This generates data structures like this
+//!
+//! ```rust
+//!
+//! pub struct PubError(ErrorEnum);
+//!
+//! enum ErrorEnum {
+//!     Variant1,
+//! }
+//!
+//! ```
+//!
+//! Which in turn allows you to export just `PubError` in your crate and keep
+//! actual enumeration private to the crate. This is useful to keep backwards
+//! compatibility for error types. Currently there is no shorcuts to define
+//! error constructors for the inner type, but we consider adding some in
+//! future versions.
+//!
+//! It's possible to declare internal enum as public too.
 //!
 //!
 
