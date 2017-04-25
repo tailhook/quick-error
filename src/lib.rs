@@ -667,6 +667,7 @@ macro_rules! quick_error {
                 }
             }
             fn cause(&self) -> Option<&::std::error::Error> {
+                use std::borrow::Borrow;
                 match *self {
                     $(
                         $(#[$imeta])*
@@ -745,7 +746,7 @@ macro_rules! quick_error {
         [$( $var:ident ),*]
         { cause($expr:expr) $( $tail:tt )*}
     ) => {
-        Some($expr)
+        Some($expr.borrow())
     };
     (FIND_CAUSE_IMPL $item:ident: $imode:tt
         [$( $var:ident ),*]
@@ -1006,7 +1007,6 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 }
 
 
-
 #[cfg(test)]
 mod test {
     use std::num::{ParseFloatError, ParseIntError};
@@ -1040,6 +1040,28 @@ mod test {
         assert_eq!(err.description(), "Two".to_string());
         assert!(err.cause().is_none());
     }
+    
+    quick_error! {
+        #[derive(Debug)]
+        pub enum BoxSupportWithoutPartialEq {
+            AnyWithCause(err: Box<Error>) {
+                display(err) -> ("{}", err)
+                description(err.description())
+                cause(err)
+            }
+        }
+    }
+    
+    #[test]
+    fn just_using_boxed_support_enum() {
+        let cause = "one and a half times pi".parse::<f32>().unwrap_err();
+        let err = BoxSupportWithoutPartialEq::AnyWithCause(Box::new(cause.clone()));
+        
+        assert_eq!(format!("{:?}", err), format!("AnyWithCause({:?})", cause));
+        assert_eq!(err.description(), cause.description());
+        assert_eq!(format!("{:?}", err.cause().unwrap()), format!("{:?}", cause));
+    }
+    
 
     quick_error! {
         #[derive(Debug)]
