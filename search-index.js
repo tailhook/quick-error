@@ -1,0 +1,3 @@
+var searchIndex = {};
+searchIndex["quick_error"] = {"doc":"A macro which makes errors easy to write","items":[[3,"Context","quick_error","Generic context type",null,null],[12,"0","","",0,null],[12,"1","","",0,null],[8,"ResultExt","","Result extension trait adding a `context` method",null,null],[10,"context","","The method is use to add context information to current operation",1,{"inputs":[{"name":"self"},{"name":"x"}],"output":{"name":"result"}}],[11,"fmt","","",0,{"inputs":[{"name":"self"},{"name":"formatter"}],"output":{"name":"result"}}],[14,"quick_error","","Main macro that does all the work",null,null]],"paths":[[3,"Context"],[8,"ResultExt"]]};
+initSearch(searchIndex);
