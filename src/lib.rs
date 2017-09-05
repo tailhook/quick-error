@@ -563,6 +563,8 @@ macro_rules! quick_error {
             => $iitem:ident ($(($( $ttyp:ty ),+))*) {$({$( $svar:ident: $styp:ty ),*})*} )* ]
         queue [ ]
     ) => {
+        #[allow(unknown_lints)]  // no unused_doc_comments in older rust
+        #[allow(unused_doc_comment)]
         $(#[$meta])*
         pub enum $name {
             $(
@@ -577,6 +579,8 @@ macro_rules! quick_error {
             => $iitem:ident ($(($( $ttyp:ty ),+))*) {$({$( $svar:ident: $styp:ty ),*})*} )* ]
         queue [ ]
     ) => {
+        #[allow(unknown_lints)]  // no unused_doc_comments in older rust
+        #[allow(unused_doc_comment)]
         $(#[$meta])*
         enum $name {
             $(
@@ -630,6 +634,8 @@ macro_rules! quick_error {
         )*}
     ) => {
         #[allow(unused)]
+        #[allow(unknown_lints)]  // no unused_doc_comments in older rust
+        #[allow(unused_doc_comment)]
         impl ::std::fmt::Display for $name {
             fn fmt(&self, fmt: &mut ::std::fmt::Formatter)
                 -> ::std::fmt::Result
@@ -651,6 +657,8 @@ macro_rules! quick_error {
             }
         }
         #[allow(unused)]
+        #[allow(unknown_lints)]  // no unused_doc_comments in older rust
+        #[allow(unused_doc_comment)]
         impl ::std::error::Error for $name {
             fn description(&self) -> &str {
                 match *self {
