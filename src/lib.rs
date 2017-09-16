@@ -998,18 +998,33 @@ pub struct Context<X, E>(pub X, pub E);
 
 /// Result extension trait adding a `context` method
 pub trait ResultExt<T, E> {
-    /// The method is use to add context information to current operation
+    /// Adds context information to the current operation
     ///
-    /// The context data is then used in error constructor to store additional
-    /// information within error. For example, you may add a filename as a
-    /// context for file operation. See crate documentation for the actual
+    /// The context data is then used in the error constructor to store additional
+    /// information within the error. For example, you may add a filename as a
+    /// context for file operation. See the crate documentation for an actual
     /// example.
     fn context<X>(self, x: X) -> Result<T, Context<X, E>>;
+
+    /// Lazily constructs and adds context information to the current operation
+    ///
+    /// This is similar to `context`, but the context closure is only
+    /// evaluated when the result is an `Err`.
+    fn with_context<F, X>(self, f: F) -> Result<T, Context<X, E>>
+    where
+        F: FnOnce() -> X;
 }
 
 impl<T, E> ResultExt<T, E> for Result<T, E> {
     fn context<X>(self, x: X) -> Result<T, Context<X, E>> {
-        self.map_err(|e| Context(x, e))
+        self.with_context(|| x)
+    }
+
+    fn with_context<F, X>(self, f: F) -> Result<T, Context<X, E>>
+    where
+        F: FnOnce() -> X
+    {
+        self.map_err(|e| Context(f(), e))
     }
 }
 
