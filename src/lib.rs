@@ -564,7 +564,9 @@ macro_rules! quick_error {
         queue [ ]
     ) => {
         #[allow(unknown_lints)]  // no unused_doc_comments in older rust
+        #[allow(renamed_and_removed_lints)]
         #[allow(unused_doc_comment)]
+        #[allow(unused_doc_comments)]
         $(#[$meta])*
         pub enum $name {
             $(
@@ -580,7 +582,9 @@ macro_rules! quick_error {
         queue [ ]
     ) => {
         #[allow(unknown_lints)]  // no unused_doc_comments in older rust
+        #[allow(renamed_and_removed_lints)]
         #[allow(unused_doc_comment)]
+        #[allow(unused_doc_comments)]
         $(#[$meta])*
         enum $name {
             $(
@@ -635,7 +639,9 @@ macro_rules! quick_error {
     ) => {
         #[allow(unused)]
         #[allow(unknown_lints)]  // no unused_doc_comments in older rust
+        #[allow(renamed_and_removed_lints)]
         #[allow(unused_doc_comment)]
+        #[allow(unused_doc_comments)]
         impl ::std::fmt::Display for $name {
             fn fmt(&self, fmt: &mut ::std::fmt::Formatter)
                 -> ::std::fmt::Result
@@ -658,7 +664,9 @@ macro_rules! quick_error {
         }
         #[allow(unused)]
         #[allow(unknown_lints)]  // no unused_doc_comments in older rust
+        #[allow(renamed_and_removed_lints)]
         #[allow(unused_doc_comment)]
+        #[allow(unused_doc_comments)]
         impl ::std::error::Error for $name {
             fn description(&self) -> &str {
                 match *self {
