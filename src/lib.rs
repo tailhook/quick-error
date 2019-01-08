@@ -382,6 +382,7 @@ macro_rules! quick_error {
             fn description(&self) -> &str {
                 self.0.description()
             }
+            #[allow(deprecated)]
             fn cause(&self) -> Option<&::std::error::Error> {
                 self.0.cause()
             }
@@ -1024,6 +1025,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod test {
     use std::num::{ParseFloatError, ParseIntError};
     use std::str::Utf8Error;
