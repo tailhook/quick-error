@@ -228,12 +228,12 @@
 //! }
 //!
 //! fn openfile(path: &Path) -> Result<(), Error> {
-//!     try!(File::open(path).context(path));
+//!     File::open(path).context(path)?;
 //!
 //!     // If we didn't have context, the line above would be written as;
 //!     //
-//!     // try!(File::open(path)
-//!     //     .map_err(|err| Error::File(path.to_path_buf(), err)));
+//!     // File::open(path)
+//!     //     .map_err(|err| Error::File(path.to_path_buf(), err))?;
 //!
 //!     Ok(())
 //! }
@@ -364,11 +364,11 @@ macro_rules! quick_error {
         $(#[$meta])*
         $($strdef)* $strname ( $internal );
 
-        impl ::std::fmt::Display for $strname {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter)
-                -> ::std::fmt::Result
+        impl ::core::fmt::Display for $strname {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter)
+                -> ::core::fmt::Result
             {
-                ::std::fmt::Display::fmt(&self.0, f)
+                ::core::fmt::Display::fmt(&self.0, f)
             }
         }
 
@@ -643,9 +643,9 @@ macro_rules! quick_error {
         #[allow(renamed_and_removed_lints)]
         #[allow(unused_doc_comment)]
         #[allow(unused_doc_comments)]
-        impl ::std::fmt::Display for $name {
-            fn fmt(&self, fmt: &mut ::std::fmt::Formatter)
-                -> ::std::fmt::Result
+        impl ::core::fmt::Display for $name {
+            fn fmt(&self, fmt: &mut ::core::fmt::Formatter)
+                -> ::core::fmt::Result
             {
                 match *self {
                     $(
@@ -712,17 +712,17 @@ macro_rules! quick_error {
     (FIND_DISPLAY_IMPL $name:ident $item:ident: $imode:tt
         { display($self_:tt) -> ($( $exprs:tt )*) $( $tail:tt )*}
     ) => {
-        |quick_error!(IDENT $self_): &$name, f: &mut ::std::fmt::Formatter| { write!(f, $( $exprs )*) }
+        |quick_error!(IDENT $self_): &$name, f: &mut ::core::fmt::Formatter| { write!(f, $( $exprs )*) }
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident: $imode:tt
         { display($pattern:expr) $( $tail:tt )*}
     ) => {
-        |_, f: &mut ::std::fmt::Formatter| { write!(f, $pattern) }
+        |_, f: &mut ::core::fmt::Formatter| { write!(f, $pattern) }
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident: $imode:tt
         { display($pattern:expr, $( $exprs:tt )*) $( $tail:tt )*}
     ) => {
-        |_, f: &mut ::std::fmt::Formatter| { write!(f, $pattern, $( $exprs )*) }
+        |_, f: &mut ::core::fmt::Formatter| { write!(f, $pattern, $( $exprs )*) }
     };
     (FIND_DISPLAY_IMPL $name:ident $item:ident: $imode:tt
         { $t:tt $( $tail:tt )*}
@@ -734,7 +734,7 @@ macro_rules! quick_error {
     (FIND_DISPLAY_IMPL $name:ident $item:ident: $imode:tt
         { }
     ) => {
-        |self_: &$name, f: &mut ::std::fmt::Formatter| {
+        |self_: &$name, f: &mut ::core::fmt::Formatter| {
             write!(f, "{}", ::std::error::Error::description(self_))
         }
     };
@@ -1255,7 +1255,7 @@ mod test {
     #[test]
     fn parse_float_error() {
         fn parse_float(s: &str) -> Result<f32, ContextErr> {
-            Ok(try!(s.parse().context(s)))
+            Ok(s.parse().context(s)?)
         }
         assert_eq!(format!("{}", parse_float("12ab").unwrap_err()),
             r#"Float error "12ab": invalid float literal"#);
@@ -1264,7 +1264,7 @@ mod test {
     #[test]
     fn parse_int_error() {
         fn parse_int(s: &str) -> Result<i32, ContextErr> {
-            Ok(try!(s.parse().context(s)))
+            Ok(s.parse().context(s)?)
         }
         assert_eq!(format!("{}", parse_int("12.5").unwrap_err()),
             r#"Int error "12.5": invalid digit found in string"#);
@@ -1285,7 +1285,7 @@ mod test {
         fn parse_utf<P: AsRef<Path>>(s: &[u8], p: P)
             -> Result<(), ContextErr>
         {
-            try!(::std::str::from_utf8(s).context(p));
+            ::std::str::from_utf8(s).context(p)?;
             Ok(())
         }
         let etext = parse_utf(b"a\x80\x80", "/etc").unwrap_err().to_string();
