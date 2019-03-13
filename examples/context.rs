@@ -33,7 +33,7 @@ fn parse_file() -> Result<u64, Error> {
     let mut file = File::open(fname).context(fname)?;
     let mut buf = String::new();
     file.read_to_string(&mut buf).context(fname)?;
-    Ok(try!(buf.parse().context(fname)))
+    Ok(buf.parse().context(fname)?)
 }
 
 fn main() {
