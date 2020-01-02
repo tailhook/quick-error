@@ -220,12 +220,12 @@
 //! }
 //!
 //! fn openfile(path: &Path) -> Result<(), Error> {
-//!     try!(File::open(path).context(path));
+//!     File::open(path).context(path)?;
 //!
 //!     // If we didn't have context, the line above would be written as;
 //!     //
-//!     // try!(File::open(path)
-//!     //     .map_err(|err| Error::File(path.to_path_buf(), err)));
+//!     // File::open(path)
+//!     //     .map_err(|err| Error::File(path.to_path_buf(), err))?;
 //!
 //!     Ok(())
 //! }
@@ -1206,7 +1206,7 @@ mod test {
     #[test]
     fn parse_float_error() {
         fn parse_float(s: &str) -> Result<f32, ContextErr> {
-            Ok(try!(s.parse().context(s)))
+            Ok(s.parse().context(s)?)
         }
         assert_eq!(format!("{}", parse_float("12ab").unwrap_err()),
             r#"Float error "12ab": invalid float literal"#);
@@ -1215,7 +1215,7 @@ mod test {
     #[test]
     fn parse_int_error() {
         fn parse_int(s: &str) -> Result<i32, ContextErr> {
-            Ok(try!(s.parse().context(s)))
+            Ok(s.parse().context(s)?)
         }
         assert_eq!(format!("{}", parse_int("12.5").unwrap_err()),
             r#"Int error "12.5": invalid digit found in string"#);
@@ -1236,7 +1236,7 @@ mod test {
         fn parse_utf<P: AsRef<Path>>(s: &[u8], p: P)
             -> Result<(), ContextErr>
         {
-            try!(::std::str::from_utf8(s).context(p));
+            ::std::str::from_utf8(s).context(p)?;
             Ok(())
         }
         let etext = parse_utf(b"a\x80\x80", "/etc").unwrap_err().to_string();

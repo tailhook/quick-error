@@ -28,12 +28,12 @@ quick_error! {
 }
 
 fn parse_file() -> Result<u64, Error> {
-    let fname = try!(env::args().skip(1).next().ok_or(Error::NoFileName));
+    let fname = env::args().skip(1).next().ok_or(Error::NoFileName)?;
     let fname = Path::new(&fname);
-    let mut file = try!(File::open(fname).context(fname));
+    let mut file = File::open(fname).context(fname)?;
     let mut buf = String::new();
-    try!(file.read_to_string(&mut buf).context(fname));
-    Ok(try!(buf.parse().context(fname)))
+    file.read_to_string(&mut buf).context(fname)?;
+    Ok(buf.parse().context(fname)?)
 }
 
 fn main() {
