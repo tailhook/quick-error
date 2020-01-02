@@ -45,12 +45,9 @@
 //! Now you might have noticed trailing braces `{}`. They are used to define
 //! implementations. By default:
 //!
-//! * `Error::description()` returns variant name as static string
 //! * `Error::source()` returns None (even if type wraps some value)
-//! * `Display` outputs `description()`
+//! * `Display` outputs debug representation
 //! * No `From` implementations are defined
-//!
-//! To define description simply add `description(value)` inside braces:
 //!
 //! ```rust
 //! # #[macro_use] extern crate quick_error;
@@ -60,17 +57,14 @@
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
 //!         Io(err: std::io::Error) {
-//!             description(err.description())
+//!             display("{}", err)
 //!         }
 //!         Utf8(err: std::str::Utf8Error) {
-//!             description("utf8 error")
+//!             display("utf8 error")
 //!         }
 //!     }
 //! }
 //! ```
-//!
-//! Normal rules for borrowing apply. So most of the time description either
-//! returns constant string or forwards description from enclosed type.
 //!
 //! To change `source` method to return some error, add `source(value)`, for
 //! example:
@@ -84,14 +78,12 @@
 //!     pub enum SomeError {
 //!         Io(err: std::io::Error) {
 //!             source(err)
-//!             description(err.description())
 //!         }
 //!         Utf8(err: std::str::Utf8Error) {
-//!             description("utf8 error")
+//!             display("utf8 error")
 //!         }
 //!         Other(err: Box<std::error::Error>) {
 //!             source(&**err)
-//!             description(err.description())
 //!         }
 //!     }
 //! }
@@ -127,16 +119,16 @@
 //! # #[macro_use] extern crate quick_error;
 //! # fn main() {}
 //! #
-//! use std::error::Error; // put methods like `description()` of this trait into scope
+//! use std::error::Error; // put methods like `source()` of this trait into scope
 //!
 //! quick_error! {
 //!     #[derive(Debug)]
 //!     pub enum SomeError {
 //!         Io(err: std::io::Error) {
-//!             display(x) -> ("{}: {}", x.description(), err)
+//!             display(x) -> ("I/O: {}", err)
 //!         }
 //!         Utf8(err: std::str::Utf8Error) {
-//!             display(self_) -> ("{}, valid up to {}", self_.description(), err.valid_up_to())
+//!             display(self_) -> ("UTF-8 error. Valid up to {}", err.valid_up_to())
 //!         }
 //!     }
 //! }
@@ -256,7 +248,7 @@
 //!
 //! More info on context in [this article](http://bit.ly/1PsuxDt).
 //!
-//! All forms of `from`, `display`, `description`, `source`, and `context`
+//! All forms of `from`, `display`, `source`, and `context`
 //! clauses can be combined and put in arbitrary order. Only `from` and
 //! `context` can be used multiple times in single variant of enumeration.
 //! Docstrings are also okay.  Empty braces can be omitted as of quick_error
@@ -378,9 +370,6 @@ macro_rules! quick_error {
         }
 
         impl ::std::error::Error for $strname {
-            fn description(&self) -> &str {
-                self.0.description()
-            }
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 self.0.source()
             }
@@ -667,20 +656,6 @@ macro_rules! quick_error {
         #[allow(unused_doc_comment)]
         #[allow(unused_doc_comments)]
         impl ::std::error::Error for $name {
-            fn description(&self) -> &str {
-                match *self {
-                    $(
-                        $(#[$imeta])*
-                        quick_error!(ITEM_PATTERN
-                            $name $item: $imode [$( ref $var ),*]
-                        ) => {
-                            quick_error!(FIND_DESCRIPTION_IMPL
-                                $item: $imode self fmt [$( $var ),*]
-                                {$( $funcs )*})
-                        }
-                    )*
-                }
-            }
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 match *self {
                     $(
@@ -733,28 +708,8 @@ macro_rules! quick_error {
         { }
     ) => {
         |self_: &$name, f: &mut ::std::fmt::Formatter| {
-            write!(f, "{}", ::std::error::Error::description(self_))
+            write!(f, "{:?}", self_)
         }
-    };
-    (FIND_DESCRIPTION_IMPL $item:ident: $imode:tt $me:ident $fmt:ident
-        [$( $var:ident ),*]
-        { description($expr:expr) $( $tail:tt )*}
-    ) => {
-        $expr
-    };
-    (FIND_DESCRIPTION_IMPL $item:ident: $imode:tt $me:ident $fmt:ident
-        [$( $var:ident ),*]
-        { $t:tt $( $tail:tt )*}
-    ) => {
-        quick_error!(FIND_DESCRIPTION_IMPL
-            $item: $imode $me $fmt [$( $var ),*]
-            {$( $tail )*})
-    };
-    (FIND_DESCRIPTION_IMPL $item:ident: $imode:tt $me:ident $fmt:ident
-        [$( $var:ident ),*]
-        { }
-    ) => {
-        stringify!($item)
     };
     (FIND_SOURCE_IMPL $item:ident: $imode:tt
         [$( $var:ident ),*]
@@ -1041,7 +996,6 @@ mod test {
     fn bare_item_direct() {
         assert_eq!(format!("{}", Bare::One), "One".to_string());
         assert_eq!(format!("{:?}", Bare::One), "One".to_string());
-        assert_eq!(Bare::One.description(), "One".to_string());
         assert!(Bare::One.source().is_none());
     }
 
@@ -1050,7 +1004,6 @@ mod test {
         let err: &Error = &Bare::Two;
         assert_eq!(format!("{}", err), "Two".to_string());
         assert_eq!(format!("{:?}", err), "Two".to_string());
-        assert_eq!(err.description(), "Two".to_string());
         assert!(err.source().is_none());
     }
 
@@ -1088,19 +1041,16 @@ mod test {
             /// ParseFloat Error
             ParseFloatError(err: ParseFloatError) {
                 from()
-                description(err.description())
                 display("parse float error: {err}", err=err)
                 source(err)
             }
             Other(descr: &'static str) {
-                description(descr)
                 display("Error: {}", descr)
             }
             /// FromUtf8 Error
             FromUtf8Error(err: Utf8Error, source: Vec<u8>) {
                 source(err)
-                display(me) -> ("{desc} at index {pos}: {err}", desc=me.description(), pos=err.valid_up_to(), err=err)
-                description("utf8 error")
+                display(me) -> ("{desc} at index {pos}: {err}", desc="utf8 error", pos=err.valid_up_to(), err=err)
                 from(err: FromUtf8Error) -> (err.utf8_error().clone(), err.into_bytes())
             }
             Discard {
@@ -1121,7 +1071,6 @@ mod test {
             format!("{:?}", err),
             format!("ParseFloatError({:?})", source)
         );
-        assert_eq!(err.description(), source.description());
         assert_eq!(
             format!("{:?}", err.source().unwrap()),
             format!("{:?}", source)
@@ -1134,7 +1083,6 @@ mod test {
         let err: &Error = &TupleWrapper::Other(desc);
         assert_eq!(format!("{}", err), format!("Error: {}", desc));
         assert_eq!(format!("{:?}", err), format!("Other({:?})", desc));
-        assert_eq!(err.description(), desc);
         assert!(err.source().is_none());
     }
 
@@ -1149,7 +1097,7 @@ mod test {
             format!("{}", err),
             format!(
                 "{desc} at index {pos}: {source}",
-                desc = err.description(),
+                desc = "utf8 error",
                 pos = source.valid_up_to(),
                 source = source
             )
@@ -1158,7 +1106,6 @@ mod test {
             format!("{:?}", err),
             format!("FromUtf8Error({:?}, {:?})", source, invalid_utf8)
         );
-        assert_eq!(err.description(), "utf8 error");
         assert_eq!(
             format!("{:?}", err.source().unwrap()),
             format!("{:?}", source)
@@ -1187,7 +1134,6 @@ mod test {
         let err: TupleWrapper = From::from("hello");
         assert_eq!(format!("{}", err), format!("Discard"));
         assert_eq!(format!("{:?}", err), format!("Discard"));
-        assert_eq!(err.description(), "Discard");
         assert!(err.source().is_none());
     }
 
@@ -1196,7 +1142,6 @@ mod test {
         let err: TupleWrapper = TupleWrapper::Singleton;
         assert_eq!(format!("{}", err), format!("Just a string"));
         assert_eq!(format!("{:?}", err), format!("Singleton"));
-        assert_eq!(err.description(), "Singleton");
         assert!(err.source().is_none());
     }
 
@@ -1206,13 +1151,11 @@ mod test {
             // Utf8 Error
             Utf8Error{ err: Utf8Error, hint: Option<&'static str> } {
                 source(err)
-                display(me) -> ("{desc} at index {pos}: {err}", desc=me.description(), pos=err.valid_up_to(), err=err)
-                description("utf8 error")
+                display(me) -> ("{desc} at index {pos}: {err}", desc="utf8 error", pos=err.valid_up_to(), err=err)
                 from(err: Utf8Error) -> { err: err, hint: None }
             }
             // Utf8 Error
             ExcessComma { descr: &'static str, } {
-                description(descr)
                 display("Error: {}", descr)
             }
         }
@@ -1232,7 +1175,7 @@ mod test {
             format!("{}", err),
             format!(
                 "{desc} at index {pos}: {source}",
-                desc = err.description(),
+                desc = "utf8 error",
                 pos = source.valid_up_to(),
                 source = source
             )
@@ -1245,7 +1188,6 @@ mod test {
                 Some("nonsense")
             )
         );
-        assert_eq!(err.description(), "utf8 error");
         assert_eq!(
             format!("{:?}", err.source().unwrap()),
             format!("{:?}", source)
@@ -1275,7 +1217,6 @@ mod test {
             format!("{:?}", err),
             format!("ExcessComma {{ descr: {:?} }}", descr)
         );
-        assert_eq!(err.description(), descr);
         assert!(err.source().is_none());
     }
 
@@ -1340,7 +1281,9 @@ mod test {
 
     #[test]
     fn path_context() {
-        fn parse_utf<P: AsRef<Path>>(s: &[u8], p: P) -> Result<(), ContextErr> {
+        fn parse_utf<P: AsRef<Path>>(s: &[u8], p: P)
+            -> Result<(), ContextErr>
+        {
             ::std::str::from_utf8(s).context(p)?;
             Ok(())
         }
