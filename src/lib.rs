@@ -452,8 +452,6 @@ macro_rules! quick_error {
         queue [ #[$qmeta:meta] $( $tail:tt )*]
     ) => {
         quick_error!(SORT [$( $def )*]
-            enum [$( $(#[$emeta])* => $eitem $(( $($etyp),* ))* )*
-                     $(#[$bmeta])* => $bitem: $bmode $(( $($btyp),* ))*]
             items [$($( #[$imeta:meta] )*
                       => $iitem: $imode [$( $ivar:$ityp ),*] {$( $ifuncs )*} )*
                      $bitem: $bmode [$( $bvar:$btyp ),*] {} ]
@@ -470,7 +468,7 @@ macro_rules! quick_error {
     ) => {
         quick_error!(SORT [$( $def )*]
             items [$( $(#[$imeta])* => $iitem: $imode [$( $ivar:$ityp ),*] {$( $ifuncs )*} )*]
-            buf [$( #[$bmeta] )* => $bitem: TUPLE [$( $qvar:$qtyp ),*] ]
+            buf [$( #[$bmeta] )* => $bitem: TUPLE [$( $qvar:$qtyp ),+] ]
             queue [$( $tail )*]
         );
     };
@@ -484,7 +482,7 @@ macro_rules! quick_error {
     ) => {
         quick_error!(SORT [$( $def )*]
             items [$( $(#[$imeta])* => $iitem: $imode [$( $ivar:$ityp ),*] {$( $ifuncs )*} )*]
-            buf [$( #[$bmeta] )* => $bitem: STRUCT [$( $qvar:$qtyp ),*] ]
+            buf [$( #[$bmeta] )* => $bitem: STRUCT [$( $qvar:$qtyp ),+] ]
             queue [$( $tail )*]);
     };
     // Add struct enum-variant, with excess comma - e.g. { descr: &'static str, }
@@ -497,7 +495,7 @@ macro_rules! quick_error {
     ) => {
         quick_error!(SORT [$( $def )*]
             items [$( $(#[$imeta])* => $iitem: $imode [$( $ivar:$ityp ),*] {$( $ifuncs )*} )*]
-            buf [$( #[$bmeta] )* => $bitem: STRUCT [$( $qvar:$qtyp ),*] ]
+            buf [$( #[$bmeta] )* => $bitem: STRUCT [$( $qvar:$qtyp ),+] ]
             queue [$( $tail )*]);
     };
     // Add braces and flush always on braces
@@ -559,7 +557,7 @@ macro_rules! quick_error {
         pub enum $name {
             $(
                 $(#[$imeta])*
-                $iitem $(($( $ttyp ),*))* $({$( $svar: $styp ),*})*,
+                $iitem $(($( $ttyp ),+))* $({$( $svar: $styp ),*})*,
             )*
         }
     };
@@ -577,7 +575,7 @@ macro_rules! quick_error {
         enum $name {
             $(
                 $(#[$imeta])*
-                $iitem $(($( $ttyp ),*))* $({$( $svar: $styp ),*})*,
+                $iitem $(($( $ttyp ),+))* $({$( $svar: $styp ),*})*,
             )*
         }
     };
@@ -603,7 +601,7 @@ macro_rules! quick_error {
     ) => {
         quick_error!(ENUM_DEFINITION [ $($def)* ]
             body [$($( #[$imeta] )* => $iitem ($(($( $ttyp ),+))*) {$({$( $svar: $styp ),*})*} )*
-                    $( #[$qmeta] )* => $qitem (($( $qtyp ),*)) {} ]
+                    $( #[$qmeta] )* => $qitem (($( $qtyp ),+)) {} ]
             queue [ $($queue)* ]
         );
     };
