@@ -3,7 +3,7 @@ Quick Error
 ===========
 
 :Status: production-ready
-:Documentation: http://tailhook.github.io/quick-error/
+:Documentation: https://docs.rs/quick-error/
 
 A macro which makes error types pleasant to write.
 
