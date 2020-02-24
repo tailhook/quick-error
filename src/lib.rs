@@ -298,9 +298,9 @@
 macro_rules! quick_error {
 
     (   $(#[$meta:meta])*
-        pub enum $name:ident { $($chunks:tt)* }
+        $v_name:vis enum $name:ident { $($chunks:tt)* }
     ) => {
-        quick_error!(SORT [pub enum $name $(#[$meta])* ]
+        quick_error!(SORT [$v_name enum $name $(#[$meta])* ]
             items [] buf []
             queue [ $($chunks)* ]);
     };
@@ -313,19 +313,19 @@ macro_rules! quick_error {
     };
 
     (   $(#[$meta:meta])*
-        pub enum $name:ident wraps $enum_name:ident { $($chunks:tt)* }
+        $v_name:vis enum $name:ident wraps $enum_name:ident { $($chunks:tt)* }
     ) => {
-        quick_error!(WRAPPER $enum_name [ pub struct ] $name $(#[$meta])*);
+        quick_error!(WRAPPER $enum_name [ $v_name struct ] $name $(#[$meta])*);
         quick_error!(SORT [enum $enum_name $(#[$meta])* ]
             items [] buf []
             queue [ $($chunks)* ]);
     };
 
     (   $(#[$meta:meta])*
-        pub enum $name:ident wraps pub $enum_name:ident { $($chunks:tt)* }
+        $v_name:vis enum $name:ident wraps $v_enum_name:vis $enum_name:ident { $($chunks:tt)* }
     ) => {
-        quick_error!(WRAPPER $enum_name [ pub struct ] $name $(#[$meta])*);
-        quick_error!(SORT [pub enum $enum_name $(#[$meta])* ]
+        quick_error!(WRAPPER $enum_name [ $v_name struct ] $name $(#[$meta])*);
+        quick_error!(SORT [$v_enum_name enum $enum_name $(#[$meta])* ]
             items [] buf []
             queue [ $($chunks)* ]);
     };
@@ -339,10 +339,10 @@ macro_rules! quick_error {
     };
 
     (   $(#[$meta:meta])*
-        enum $name:ident wraps pub $enum_name:ident { $($chunks:tt)* }
+        enum $name:ident wraps $v_enum_name:vis $enum_name:ident { $($chunks:tt)* }
     ) => {
         quick_error!(WRAPPER $enum_name [ struct ] $name $(#[$meta])*);
-        quick_error!(SORT [pub enum $enum_name $(#[$meta])* ]
+        quick_error!(SORT [$v_enum_name enum $enum_name $(#[$meta])* ]
             items [] buf []
             queue [ $($chunks)* ]);
     };
@@ -396,14 +396,14 @@ macro_rules! quick_error {
             quick_error!(ERROR_CHECK $imode $($ifuncs)*);
         )*
     };
-    (SORT [pub enum $name:ident $( #[$meta:meta] )*]
+    (SORT [$v_name:vis enum $name:ident $( #[$meta:meta] )*]
         items [$($( #[$imeta:meta] )*
                   => $iitem:ident: $imode:tt [$( $ivar:ident: $ityp:ty ),*]
                                 {$( $ifuncs:tt )*} )* ]
         buf [ ]
         queue [ ]
     ) => {
-        quick_error!(ENUM_DEFINITION [pub enum $name $( #[$meta] )*]
+        quick_error!(ENUM_DEFINITION [$v_name enum $name $( #[$meta] )*]
             body []
             queue [$($( #[$imeta] )*
                       => $iitem: $imode [$( $ivar: $ityp ),*] )*]
@@ -544,7 +544,7 @@ macro_rules! quick_error {
             queue [ ]);
     };
     // Public enum (Queue Empty)
-    (ENUM_DEFINITION [pub enum $name:ident $( #[$meta:meta] )*]
+    (ENUM_DEFINITION [$v_name:vis enum $name:ident $( #[$meta:meta] )*]
         body [$($( #[$imeta:meta] )*
             => $iitem:ident ($(($( $ttyp:ty ),+))*) {$({$( $svar:ident: $styp:ty ),*})*} )* ]
         queue [ ]
@@ -554,7 +554,7 @@ macro_rules! quick_error {
         #[allow(unused_doc_comment)]
         #[allow(unused_doc_comments)]
         $(#[$meta])*
-        pub enum $name {
+        $v_name enum $name {
             $(
                 $(#[$imeta])*
                 $iitem $(($( $ttyp ),+))* $({$( $svar: $styp ),*})*,
