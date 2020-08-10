@@ -997,7 +997,7 @@ mod test {
 
     #[test]
     fn bare_item_trait() {
-        let err: &Error = &Bare::Two;
+        let err: &dyn Error = &Bare::Two;
         assert_eq!(format!("{}", err), "Two".to_string());
         assert_eq!(format!("{:?}", err), "Two".to_string());
         assert!(err.source().is_none());
@@ -1075,7 +1075,7 @@ mod test {
     #[test]
     fn tuple_wrapper_trait_str() {
         let desc = "hello";
-        let err: &Error = &TupleWrapper::Other(desc);
+        let err: &dyn Error = &TupleWrapper::Other(desc);
         assert_eq!(format!("{}", err), format!("Error: {}", desc));
         assert_eq!(format!("{:?}", err), format!("Other({:?})", desc));
         assert!(err.source().is_none());
@@ -1087,7 +1087,7 @@ mod test {
         let source = String::from_utf8(invalid_utf8.clone())
             .unwrap_err()
             .utf8_error();
-        let err: &Error = &TupleWrapper::FromUtf8Error(source.clone(), invalid_utf8.clone());
+        let err: &dyn Error = &TupleWrapper::FromUtf8Error(source.clone(), invalid_utf8.clone());
         assert_eq!(
             format!("{}", err),
             format!(
@@ -1162,7 +1162,7 @@ mod test {
         let source = String::from_utf8(invalid_utf8.clone())
             .unwrap_err()
             .utf8_error();
-        let err: &Error = &StructWrapper::Utf8Error {
+        let err: &dyn Error = &StructWrapper::Utf8Error {
             err: source.clone(),
             hint: Some("nonsense"),
         };
@@ -1276,9 +1276,7 @@ mod test {
 
     #[test]
     fn path_context() {
-        fn parse_utf<P: AsRef<Path>>(s: &[u8], p: P)
-            -> Result<(), ContextErr>
-        {
+        fn parse_utf<P: AsRef<Path>>(s: &[u8], p: P) -> Result<(), ContextErr> {
             ::std::str::from_utf8(s).context(p)?;
             Ok(())
         }
@@ -1309,7 +1307,7 @@ mod test {
         let cause = String::from_utf8(invalid_utf8.clone())
             .unwrap_err()
             .utf8_error();
-        let err: &Error = &StructWrapper::Utf8Error {
+        let err: &dyn Error = &StructWrapper::Utf8Error {
             err: cause.clone(),
             hint: Some("nonsense"),
         };
