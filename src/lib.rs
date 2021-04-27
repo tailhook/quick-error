@@ -1016,12 +1016,18 @@ mod test {
 
     #[test]
     fn wrapper() {
-        assert_eq!(format!("{}", Wrapper::from(Wrapped::One)), "One".to_string());
+        assert_eq!(
+            format!("{}", Wrapper::from(Wrapped::One)),
+            "One".to_string()
+        );
         assert_eq!(
             format!("{}", Wrapper::from(Wrapped::from(String::from("hello")))),
             "two: hello".to_string()
         );
-        assert_eq!(format!("{:?}", Wrapper::from(Wrapped::One)), "Wrapper(One)".to_string());
+        assert_eq!(
+            format!("{:?}", Wrapper::from(Wrapped::One)),
+            "Wrapper(One)".to_string()
+        );
     }
 
     quick_error! {
@@ -1056,8 +1062,14 @@ mod test {
         let source = "one and a half times pi".parse::<f32>().unwrap_err();
         let err = TupleWrapper::ParseFloatError(source.clone());
         assert_eq!(format!("{}", err), format!("parse float error: {}", source));
-        assert_eq!(format!("{:?}", err), format!("ParseFloatError({:?})", source));
-        assert_eq!(format!("{:?}", err.source().unwrap()), format!("{:?}", source));
+        assert_eq!(
+            format!("{:?}", err),
+            format!("ParseFloatError({:?})", source)
+        );
+        assert_eq!(
+            format!("{:?}", err.source().unwrap()),
+            format!("{:?}", source)
+        );
     }
 
     #[test]
@@ -1072,7 +1084,9 @@ mod test {
     #[test]
     fn tuple_wrapper_trait_two_fields() {
         let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
-        let source = String::from_utf8(invalid_utf8.clone()).unwrap_err().utf8_error();
+        let source = String::from_utf8(invalid_utf8.clone())
+            .unwrap_err()
+            .utf8_error();
         let err: &dyn Error = &TupleWrapper::FromUtf8Error(source.clone(), invalid_utf8.clone());
         assert_eq!(
             format!("{}", err),
@@ -1087,7 +1101,10 @@ mod test {
             format!("{:?}", err),
             format!("FromUtf8Error({:?}, {:?})", source, invalid_utf8)
         );
-        assert_eq!(format!("{:?}", err.source().unwrap()), format!("{:?}", source));
+        assert_eq!(
+            format!("{:?}", err.source().unwrap()),
+            format!("{:?}", source)
+        );
     }
 
     #[test]
@@ -1142,7 +1159,9 @@ mod test {
     #[test]
     fn struct_wrapper_err() {
         let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
-        let source = String::from_utf8(invalid_utf8.clone()).unwrap_err().utf8_error();
+        let source = String::from_utf8(invalid_utf8.clone())
+            .unwrap_err()
+            .utf8_error();
         let err: &dyn Error = &StructWrapper::Utf8Error {
             err: source.clone(),
             hint: Some("nonsense"),
@@ -1158,15 +1177,24 @@ mod test {
         );
         assert_eq!(
             format!("{:?}", err),
-            format!("Utf8Error {{ err: {:?}, hint: {:?} }}", source, Some("nonsense"))
+            format!(
+                "Utf8Error {{ err: {:?}, hint: {:?} }}",
+                source,
+                Some("nonsense")
+            )
         );
-        assert_eq!(format!("{:?}", err.source().unwrap()), format!("{:?}", source));
+        assert_eq!(
+            format!("{:?}", err.source().unwrap()),
+            format!("{:?}", source)
+        );
     }
 
     #[test]
     fn struct_wrapper_struct_from() {
         let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
-        let source = String::from_utf8(invalid_utf8.clone()).unwrap_err().utf8_error();
+        let source = String::from_utf8(invalid_utf8.clone())
+            .unwrap_err()
+            .utf8_error();
         let err = StructWrapper::Utf8Error {
             err: source.clone(),
             hint: None,
@@ -1180,7 +1208,10 @@ mod test {
         let descr = "hello";
         let err = StructWrapper::ExcessComma { descr: descr };
         assert_eq!(format!("{}", err), format!("Error: {}", descr));
-        assert_eq!(format!("{:?}", err), format!("ExcessComma {{ descr: {:?} }}", descr));
+        assert_eq!(
+            format!("{:?}", err),
+            format!("ExcessComma {{ descr: {:?} }}", descr)
+        );
         assert!(err.source().is_none());
     }
 
@@ -1251,7 +1282,9 @@ mod test {
         }
         let etext = parse_utf(b"a\x80\x80", "/etc").unwrap_err().to_string();
         assert!(etext.starts_with("Path error at \"/etc\": invalid utf-8"));
-        let etext = parse_utf(b"\x80\x80", PathBuf::from("/tmp")).unwrap_err().to_string();
+        let etext = parse_utf(b"\x80\x80", PathBuf::from("/tmp"))
+            .unwrap_err()
+            .to_string();
         assert!(etext.starts_with("Path error at \"/tmp\": invalid utf-8"));
     }
 
@@ -1271,7 +1304,9 @@ mod test {
     #[allow(deprecated)]
     fn cause_struct_wrapper_err() {
         let invalid_utf8: Vec<u8> = vec![0, 159, 146, 150];
-        let cause = String::from_utf8(invalid_utf8.clone()).unwrap_err().utf8_error();
+        let cause = String::from_utf8(invalid_utf8.clone())
+            .unwrap_err()
+            .utf8_error();
         let err: &dyn Error = &StructWrapper::Utf8Error {
             err: cause.clone(),
             hint: Some("nonsense"),
@@ -1287,8 +1322,15 @@ mod test {
         );
         assert_eq!(
             format!("{:?}", err),
-            format!("Utf8Error {{ err: {:?}, hint: {:?} }}", cause, Some("nonsense"))
+            format!(
+                "Utf8Error {{ err: {:?}, hint: {:?} }}",
+                cause,
+                Some("nonsense")
+            )
         );
-        assert_eq!(format!("{:?}", err.cause().unwrap()), format!("{:?}", cause));
+        assert_eq!(
+            format!("{:?}", err.cause().unwrap()),
+            format!("{:?}", cause)
+        );
     }
 }
