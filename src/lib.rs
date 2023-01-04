@@ -39,6 +39,20 @@
 //! }
 //! ```
 //!
+//! Struct variants are also possible:
+//!
+//! ```rust
+//! # #[macro_use] extern crate quick_error;
+//! # fn main() {}
+//! #
+//! quick_error! {
+//!     #[derive(Debug)]
+//!     pub enum SomeError {
+//!         Io { err: std::io::Error, msg: String } {}
+//!     }
+//! }
+//! ```
+//!
 //! Note unlike in normal Enum declarations you declare names of fields (which
 //! are omitted from type). How they can be used is outlined below.
 //!
