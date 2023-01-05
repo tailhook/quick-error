@@ -837,6 +837,7 @@ macro_rules! quick_error {
         { context($cvar:ident: $ctyp:ty, $fvar:ident: $ftyp:ty)
             -> ($( $texpr:expr ),*) $( $tail:tt )* }
     ) => {
+        #[allow(extra_unused_lifetimes)]
         impl<'a> From<$crate::Context<$ctyp, $ftyp>> for $name {
             fn from(
                 $crate::Context($cvar, $fvar): $crate::Context<$ctyp, $ftyp>)
